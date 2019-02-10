@@ -7,6 +7,7 @@ require 'z80/math_i'
 require 'z80/stdlib'
 require 'zxlib/gfx'
 require 'zxlib/sys'
+require 'zxlib/basic'
 require 'utils/zx7'
 require 'utils/shuffle'
 require 'utils/sincos'
@@ -40,7 +41,7 @@ class GDC
   # Imports #
   ###########
 
-  label_import  ZXSys
+  import        ZXSys, labels: true, macros: true, code: false
   macro_import  Z80Lib
   macro_import  Z80MathInt
   macro_import  Z80SinCos
@@ -127,8 +128,6 @@ class GDC
 
   dvar          addr 0xF000, DemoVars
   dvar_end      addr :next, 0
-  save_sp_basic addr :next, 2
-  save_sp_int   addr :next, 2
   logo_temp     addr 0xF800             # just a temporary decompress space, currently unused
   pattern_buf   addr logo_temp - 256    # current pattern data
   patt_shuffle  addr pattern_buf - 256  # pattern shuffle index
@@ -138,27 +137,6 @@ class GDC
   ##########
   # Macros #
   ##########
-
-  # ZF=0 if any key is being pressed
-  macro :key_pressed? do
-                xor  a
-                inp  a, (254)
-                cpl
-                anda 0x1F
-  end
-
-  macro :init_interrupts do |_, handleint|
-      ld  a, 0x18          # 18H is jr
-      ld  [0xFFFF], a
-      ld  a, 0xC3          # C3H is jp
-      ld  [0xFFF4], a
-      ld  hl, handleint
-      ld  [0xFFF5], hl
-      ld  a, 0x39
-      ld  i, a             # load the accumulator with FF filled page in rom.
-      im2
-      ei
-  end
 
   ##
   # main attribute renderer piece of the puzzle
@@ -205,13 +183,13 @@ class GDC
 
                   di
 
-                  # ld  hl, 42423
+                  # ld  hl, 42423 # 1952 42422
                   # ld  [vars.seed], hl
 
-                  ld   [save_sp_basic], sp
+                  ld   [save_sp + 1], sp
                   ld   sp, mini_stk_end     # own stack in "fast" mem
 
-                  ld   a, 0b00000000
+                  xor  a
                   call clear_screen
 
                   call music_init
@@ -236,7 +214,7 @@ class GDC
 
                   ld   ix, identity
                   ld   hl, patt_shuffle
-                  ld   a, 256
+                  xor  a   # ld   a, 256
                   ld   [dvar.shuffle_state], a
                   call shuffle
 
@@ -263,8 +241,8 @@ class GDC
                   sbc  hl, de
                   ld   [hl], a # dvar.pattx_control.cur_incr = neutral
 
-                  # ld   a, 0b11011111
-                  ld   a, [vars.seed + 1]
+                  ld   a, 0b11011111
+                  # ld   a, [vars.seed + 1]
                   ld   [dvar.fgcolor], a
 
                   ld   hl, dvar.rotate_flags
@@ -272,9 +250,10 @@ class GDC
 
                   memcpy pattern_buf, pattern4, 256
 
-                  ld   a, [vars.seed]
-                  anda 7
-                  xor  6
+                  # ld   a, [vars.seed]
+                  # anda 7
+                  # xor  6
+                  ld   a, 2
                   call extra_colors.set_fg_color
 
                   ld   hl, dvar.text_delay
@@ -283,7 +262,7 @@ class GDC
                   ld   [dvar.text_cursor], hl
 
                   # start rotating
-                  init_interrupts rotate_int
+                  setup_custom_interrupt_handler rotate_int
 
                   call wait_for_next.reset
 
@@ -420,12 +399,8 @@ class GDC
                   bit  B_EFFECT_OVER, [hl]
                   jr   Z, eloop
 
-                  ld   sp, [save_sp_basic]
-                  ld   iy, vars.err_nr      # restore iy
-                  ld  a, 0x3F
-                  ld  i, a
-                  im1
-                  ei
+    save_sp       ld   sp, 0                # set above
+                  restore_rom_interrupt_handler
                   pop  hl                   # restore hl'
                   exx
                   ret
@@ -671,7 +646,7 @@ class GDC
   # dy2: (scale*Math.cos(angle) * 256 * 16).truncate
 
   with_saved :rotate_int, :no_ixy, :exx, :ex_af, :no_ixy, use: sincos do
-                  ld   [save_sp_int], sp
+                  ld   [save_sp + 1], sp
             # ld   a, 1
             # out  (254), a
   # render lower half - current rotators:
@@ -993,7 +968,7 @@ class GDC
                   push hl
                   ld   [dvar.rotator[0].dy2], hl
 
-                  ld   sp, [save_sp_int]
+    save_sp       ld   sp, 0      # set on top
             # xor  a
             # out  (254), a
   end
@@ -1654,6 +1629,8 @@ class Program
   MUSIC_NAME = 'gdc/music4.tap'
   MUSIC_TAP = Z80::TAP.parse_file(MUSIC_NAME)
 
+  GDC_SEED = 9998 # 9998, 1110, 2408, 42420, 42423, 42422, 1952, 4266, 32768, 1647, 47, 69, 310, 1906, 12345, 10101, 2357, 100, 200, 2334, 1508, 2765, 156, 7777, 31744
+
   GDC = ::GDC.new 0x8000
   PLAYER = MUSIC_TAP.next
   MUSIC  = MUSIC_TAP.next
@@ -1665,7 +1642,7 @@ class Program
   music_player  addr PLAYER.header.p1
 
                 ld   hl, code_zx7
-                ld   de, 32768
+                ld   de, GDC.org # start address
                 push de
                 call decompress
                 ld   hl, player_zx7
@@ -1674,10 +1651,11 @@ class Program
                 ld   hl, music_zx7
                 ld   de, music_data
                 call decompress
-                ld   hl, 42420
+                ld   hl, GDC_SEED
                 ld   [vars.seed], hl
-                pop  hl
-                jp   (hl)
+                ret  # jump [sp]
+                # pop  hl
+                # jp   (hl)
 
   decompress    dzx7_standard
   code_zx7      data ZX7.compress(GDC.code)
@@ -1720,7 +1698,7 @@ dvar.logo_lines
 dvar
 dvar_end
 mini_stk_end
-save_sp_int
+int_stk_end
 logo_temp sincos dvar.pattern dvar.fgcolor dvar.at_position patt_shuffle pattern_buf logo_shadow]
 .map {|n| [n,gdc[n]]}
 .sort_by {|(n,v)| v}
@@ -1728,15 +1706,22 @@ logo_temp sincos dvar.pattern dvar.fgcolor dvar.at_position patt_shuffle pattern
   puts "  #{name.ljust(20)}: 0x#{value.to_s 16} #{value}"
 end
 
-program = Program.new 0x4000
-# puts program.debug
-puts "ZX7 SIZE: #{program.code.bytesize}"
-puts "ZX7 CODE SIZE: #{program[:player_zx7] - program[:code_zx7]} vs #{Program::GDC.code.bytesize}"
-puts "PLAYER SIZE: #{program[:music_zx7] - program[:player_zx7]} vs #{Program::PLAYER.header.length}"
-puts "MUSIC SIZE: #{program[:end_of_data] - program[:music_zx7]} vs #{Program::MUSIC.header.length}"
+bootstrap = Program.new 0x4000
+# puts bootstrap.debug
+puts "COMPRESSED TOTAL SIZE:\t#{bootstrap.code.bytesize}"
+puts "COMPRESSED CODE SIZE:\t#{bootstrap[:player_zx7] - bootstrap[:code_zx7]} < #{Program::GDC.code.bytesize}"
+puts "COMPRESSED PLAYER SIZE:\t#{bootstrap[:music_zx7] - bootstrap[:player_zx7]} < #{Program::PLAYER.header.length}"
+puts "COMPRESSED MUSIC SIZE:\t#{bootstrap[:end_of_data] - bootstrap[:music_zx7]} < #{Program::MUSIC.header.length}"
 
-Z80::TAP.read_chunk('gdc/loader_gdc_screen.tap').save_tap 'gdc.tap'
-program.save_tap 'gdc', append: true
+# Z80::TAP.read_chunk('gdc/loader_gdc_screen.tap').save_tap 'gdc.tap'
+program = Basic.parse_source <<-END
+   1 RANDOMIZE : RANDOMIZE USR VAL "32768": STOP
+9999 CLEAR VAL "32767": LOAD ""SCREEN$ : RANDOMIZE USR VAL "16384"
+END
+program.start = 9999
+puts program.to_source escape_keywords:true
+program.save_tap 'gdc'
+bootstrap.save_tap 'gdc', append: true
 
 Z80::TAP.parse_file('gdc.tap') do |hb|
     puts hb.to_s
