@@ -11,7 +11,8 @@ require 'zxlib/basic'
 require 'utils/zx7'
 require 'utils/shuffle'
 require 'utils/sincos'
-require 'gdc/bfont'
+# require 'gdc/bfont'
+require 'utils/bigfont'
 
 class GDC
   include Z80
@@ -527,12 +528,17 @@ class GDC
                 ld   h, pattern_buf >> 8 # pattern address
                 ret
 
-  # Outputs 16x16 antialiased printable character.
+  # Outputs 16x15 printable character.
   #
-  # a - character to print
+  # a' - character to print
   # d - a vertical row (0-191) to start printing at
   # e - a byte column (0-31) to start printing at
-  print_big_chr print_char [vars.chars], compact:false, over:true
+  print_big_chr ytoscr d, col:e, t:c
+                ld   c, 8             # 8 character lines
+                exx                   # save screen address and height
+                ex   af, af           # restore code
+                char_ptr_from_code [vars.chars], a, tt:de
+                enlarge_char8_16 compact:false, over: :or, assume_chars_aligned:true
                 ret
 
   #   frms      byte
@@ -1048,7 +1054,6 @@ class GDC
                   ld   a, e
                   add  2
                   ld   [dvar.at_position.column], a
-                  ex   af, af
                   jp   print_big_chr
     check_control cp   0xF0
                   jr   C, handle_pos
