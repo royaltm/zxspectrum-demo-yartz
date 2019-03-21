@@ -1,5 +1,5 @@
 # -*- coding: BINARY -*-
-here = File.expand_path('..', __dir__)
+here = File.expand_path('../..', __dir__)
 $:.unshift(here) unless $:.include?(here)
 
 require 'z80'
@@ -36,7 +36,7 @@ class GDC
   # Exports #
   ###########
 
-  export        gdc
+  export        start
 
   ###########
   # Imports #
@@ -133,7 +133,7 @@ class GDC
   pattern_buf   addr logo_temp - 256    # current pattern data
   patt_shuffle  addr pattern_buf - 256  # pattern shuffle index
   mini_stk_end  addr patt_shuffle[0]    # stack for main program
-  int_stk_end   addr mini_stk_end - 256 # stack for music player
+  intr_stk_end  addr mini_stk_end - 256 # stack for music player
 
   ##########
   # Macros #
@@ -176,7 +176,7 @@ class GDC
   # MAIN #
   ########
 
-  ns :gdc, use: dvar do
+  ns :start, use: dvar do
                   exx
                   push hl                   # save hl'
 
@@ -651,7 +651,7 @@ class GDC
   # dx2: (scale*-Math.sin(angle) * 256).truncate,
   # dy2: (scale*Math.cos(angle) * 256 * 16).truncate
 
-  with_saved :rotate_int, :no_ixy, :exx, :ex_af, :no_ixy, use: sincos do
+  with_saved :rotate_int, :all_but_ixiy, :exx, :ex_af, :all_but_ixiy, use: sincos do
                   ld   [save_sp + 1], sp
             # ld   a, 1
             # out  (254), a
@@ -746,7 +746,7 @@ class GDC
 
             # ld   a, 5
             # out  (254), a
-                  ld   sp, int_stk_end
+                  ld   sp, intr_stk_end
                   call music_play
       #             ld   b, 20
       # busyloop    nop
@@ -1600,7 +1600,7 @@ class GDC
                 db 0x11, 0x22, 0x77  # blue 7x7+2x2
                 db 0
 
-  logo_data     import_file 'gdc/gdc_logo2.bin'
+  logo_data     import_file File.join(__dir__, 'gdc_logo2.bin')
   # logo_data      data ZX7.compress(IO.read('gdc/gdc_logo2.bin', mode: 'rb'))
 
   # colormapper = proc do |c|
@@ -1631,7 +1631,7 @@ class Program
   include Z80
   include Z80::TAP
 
-  MUSIC_NAME = 'gdc/music4.tap'
+  MUSIC_NAME = File.join(__dir__, 'music4.tap')
   MUSIC_TAP = Z80::TAP.parse_file(MUSIC_NAME)
 
   GDC_SEED = 9998 # 9998, 1110, 2408, 42420, 42423, 42422, 1952, 4266, 32768, 1647, 47, 69, 310, 1906, 12345, 10101, 2357, 100, 200, 2334, 1508, 2765, 156, 7777, 31744
@@ -1643,8 +1643,8 @@ class Program
   label_import  ZXSys
   macro_import  ZX7
 
-  music_data    addr MUSIC.header.p1
-  music_player  addr PLAYER.header.p1
+  music_data    addr MUSIC.header.address
+  music_player  addr PLAYER.header.address
 
                 ld   hl, code_zx7
                 ld   de, GDC.org # start address
@@ -1672,7 +1672,7 @@ end
 gdc = Program::GDC
 puts gdc.debug
 puts "SIZE: #{gdc.code.bytesize}"
-puts "CODE: #{gdc[:end_of_code] - gdc[:gdc]}"
+puts "CODE: #{gdc[:end_of_code] - gdc[:start]}"
 puts "wrktop: #{gdc.org + gdc.code.bytesize}"
 %w[end_of_code
 rotate_int
@@ -1703,7 +1703,7 @@ dvar.logo_lines
 dvar
 dvar_end
 mini_stk_end
-int_stk_end
+intr_stk_end
 logo_temp sincos dvar.pattern dvar.fgcolor dvar.at_position patt_shuffle pattern_buf logo_shadow]
 .map {|n| [n,gdc[n]]}
 .sort_by {|(n,v)| v}
