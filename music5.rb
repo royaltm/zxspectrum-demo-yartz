@@ -97,190 +97,45 @@ class Music
   #   notes[$random.rand notes.length]
   # end
 
-# https://www.youtube.com/watch?v=oPMRG-UbN_0
-# https://www.youtube.com/watch?v=wrOTpJK2cK0
-# https://www.youtube.com/watch?v=AEMgNMNeBr4
-# https://www.youtube.com/watch?v=ACN4jBNuHNU Debussy: 
-# https://www.youtube.com/watch?v=UcIRjTYiRPU Debussy: Toccata
-# https://www.youtube.com/watch?v=tNi5iTlKr_A Debussy: Pagodes / Estamples (L.100/1)
 # https://www.youtube.com/watch?v=SO7iYa94N-M Debussy: Mouvement (L.110/3)
-# https://www.youtube.com/watch?v=wXJW0TAeP3s Debussy: The Snow Is Dancing (L.113/4)
-# https://www.youtube.com/watch?v=1EIE78D0m1g
-# https://www.youtube.com/watch?v=4HTWyhqY0Hc
   music_track :track_a do
-    tempo 96
-    n0
-    i :instr1_loud
-    # vs 30; vg 0.25
-    p  32, 64
-    rpt(2) do
-      a  4, 8, 16     ; a  4, 16; a  4, 16; c  4, 16; b  4, 16; a  4, 16
-      e  4, 8, 16     ; e  3, 16; e  3, 16; g! 3, 16; f! 3, 16; e  3, 16
-      a  4, 8, 16     ; a  4, 16; a  4, 16; c  4, 16; b  4, 16; a  4, 16
-      e  4, 4                             ; e  3, 8 ; ve :env_vol_silent; p 8
-      i :instr1_normal
-    end
-
-    i :instr1_loud
-    a  4, 8, 16     ; a  4, 16; a  4, 16; a! 4, 16; a  4, 16; g  3, 16
-    f  3, 8, 16     ; d  3, 16; d  3, 16; f  3, 16; e  3, 16; d  3, 16
-    g  3, 8, 16     ; g  3, 16; g  3, 16; a  4, 16; g  3, 16; f  3, 16
-    e  3, 8, 16     ; c  3, 16; c  3, 16; e  3, 16; d  3, 16; c  3, 16
-    f  3, 8, 16     ; b  3, 16; b  3, 16; d  3, 16; c  3, 16; b  3, 16
-    tempo 112
-    e  3, 8, 16     ; a  3, 16; a  3, 16; c  3, 16; b  3, 16; a  3, 16
-    # f  2, 8         ; b  3, 8 ; b  3, 16; e  3, 16; d  3, 16; b  3, 16
     tempo 128
-    i :instr1_normal
-    f  2, 8         ; a  3; ce :chord_note2; p 16; ce 0                    # b  3, 8;
-                      e  2, 16; 
-                      b  3, 16;
-                      b  3; ce :chord_note5; p 32 ; ce 0; m2; e  3, 32; m1 # e  3, 16;
-                                                  ; d  3, 16; b  3, 16
-    a  3, 4;
-    p  32; #c  3, 32;
-    e  3, 32; 
-    p  16; #a  4, 16;
-    ve :env_vol_silent; p  8
-
-    sync 0
-
-    # part #3
-    tempo 128+64
-    i :instr3_normal
-    a  3, 16;
-    rpt(2) do
-      e  3, 16; a  4, 16; g! 3, 16;     a  4, 16; e  3, 16, 64; f! 3, 8, 64; a  3, 16,-64
-      e  3, 16; a  4, 16; g! 3, 16, 64; a  4, 16; e  3, 16;     f! 3, 8, 64; g! 2, 16
-      d! 3, 16; g! 3, 16; f! 3, 16;     g! 3, 16; d! 3, 16, 64; e  3, 8;     e  2, 16
-      b  3, 16; e  3, 16; d! 3, 16, 64; e  3, 16; b  3, 16;     d  3, 8;     a  3, 16
-    end
-    rpt(2) do
-      e  3, 16;     a  4, 16; g! 3, 16;     a  4, 16; e  3, 16, 64; g  3,  8, 32; d  2, 32
-      a  3, 16;     d  3, 16; f! 3, 16;     e  3, 16; d  3, 16, 64; c! 3,  8, 64; g! 2, 16
-      d! 3, 16;     g! 3, 16; g  3, 16;     g! 3, 16; d! 3, 16, 64; f! 3,  8, 32; c! 2, 32
-      g! 2, 16, 64; c! 3, 16; e  3, 16;     d! 3, 16; c! 3, 16, 64; b  3,  8;     f! 2, 16
-      c! 3, 16;     f! 3, 16; f  3, 16;     f! 3, 16; d  3, 16;     c! 3, 16, 64; b  3, 16; e  2, 16
-      b  3, 16;     e  3, 16; d! 3, 16, 64; e  3, 16; c! 3, 16;     b  3, 16;     a  3, 16, 64; d  2, 16
-      a  3, 16;     d  3, 16; a  3, 16, 64; e  2, 16; b  3, 16;     e  3, 16;     d  3, 16, 64; a  3, 16; e  3, 16
-      a  4, 16;     g! 3, 16; a  4, 16;     c! 3, 16, 64; e  3, 8;  a  3, 16;
-    end
-    ve :env_vol_silent_slow2
+    n0
+    i :instr1_quiet
+    rpt(16) { p 32, 32; g  3, 32 }
+    l :mloop
+    rpt(7) { e  3, 32; f  3, 32; g  3, 32 }
+    f!  3, 32; a  4, 32; g  3, 32
+    rpt(7) { e  3, 32; f  3, 32; g  3, 32 }
+    f!  3, 32; a  4, 32; a  4, 32
+    puts "counter1: #{counter}"
+    lt :mloop
   end
 
   music_track :track_b do
-    tempo 96
-    n0
-    i :instr1_loud
-    # vs 30
-    p  32, 64
-    w  1
-    rpt(2) do
-      a  3, 8, 16     ; a  3, 16; a  3, 16; c  3, 16; b  3, 16; a  3, 16
-      e  3, 8, 16     ; e  2, 16; e  2, 16; g! 2, 16; f! 2, 16; e  2, 16
-      a  3, 8, 16     ; a  3, 16; a  3, 16; c  3, 16; b  3, 16; a  3, 16
-      e  3, 4                             ; e  2, 8 ; ve :env_vol_silent; p 8
-      i :instr1_normal
-    end
-
-    i :instr1_normal
-    a  3, 8, 16     ; a  3, 16; a  3, 16; a! 3, 16; a  3, 16; g  2, 16
-    f  2, 8, 16     ; d  2, 16; d  2, 16; f  2, 16; e  2, 16; d  2, 16
-    g  2, 8, 16     ; g  2, 16; g  2, 16; a  3, 16; g  2, 16; f  2, 16
-    e  2, 8, 16     ; c  2, 16; c  2, 16; e  2, 16; d  2, 16; c  2, 16
-    f  2, 8, 16     ; b  2, 16; b  2, 16; d  2, 16; c  2, 16; b  2, 16
-    tempo 112
-    e  2, 8, 16     ; a  2, 16; a  2, 16; c  2, 16; b  2, 16; a  2, 16
-    # f  1, 8         ; b  2, 8 ; b  2, 16; e  2, 16; d  2, 16; b  2, 16
     tempo 128
-    f  1, 8         ; a  2; ce :chord_note2; p 16; ce 0                    # b  2, 8;
-                      e  1, 16, 32; 
-                      b  2, 16, -32;
-                      b  2; ce :chord_note5; p 32 ; ce 0; m2; e  2, 32; m1 # e  2, 16;
-                                                  ; d  2, 16; b  2, 16
-    a  2, 8, 4; ve :env_vol_silent; p  8
-
-    sync 0
-
-    # part 2
-    tempo 128+64
-    p 16
-    i :instr1_normal
-    rpt(2) do
-      p 16;               c! 4, 8;      c! 5, 8;             a  5, 8, -64;             f! 4, 16, 32
-      p 16, 64;           c  4, 8;      c  5, 8;             a  5, 8, -64;             f! 4, 16, 32
-      p 16;               b  4, 8;      b  5, 8;             g! 4, 8;                  e  4, 16, 64
-      p 16;               g! 3, 8;      g! 4, 8;             e  4, 8, -64;             d  4, 16, 32
-    end
-    rpt(2) do
-      p 16;             c! 4, 8;      c! 5, 8;             a  5, 8, 64;              
-      i :instr3_normal; g  4, 16; vo; i :instr1_normal
-      p 16;             a  4, 8;      a  5, 16, 64; f! 4, 32, 64; e  4, 16, 32; d  4, 16; c! 4, 16
-      p 16;             c  4, 8;      c  5, 8;      g! 4,  8, 32; f! 4, 32, 64
-      p 16;             g! 3, 8, 64;  g! 4, 8;      d! 4, 16, 64; c! 4, 16;     b  4, 16
-      p 16;             a! 4, 8;      a! 5, 8;      f! 4, 16, 64; d  4, 32, 64; c! 4, 16, 64
-      p 64;             b  4, 32, 64; g! 3, 8, 64;  g! 4, 8;      e  4, 16, 64; c! 4, 32, 64; b  4, 16, 64
-      p 64;             a  4, 32, 64; f  3, 8, 64;  f  4, 8;      g! 3, 8;      g! 4, 8, 64
-      c! 4, 8;          c! 5, 8;      a  5, 8;      e  4, 16, 64;
-    end
-    ve :env_vol_silent_slow2
+    n0
+    i :instr1_quiet
+    rpt(15) { p 16; c  3, 32 }
+    p 16; d  3, 32
+    l :mloop
+    rpt(7) { p 16;  d  3, 32 }
+    p 16; d! 3, 32
+    rpt(7) { p 16;  d 3, 32 }
+    p 16; d! 3, 32
+    puts "counter2: #{counter}"
+    lt :mloop
   end
 
   music_track :track_c do
-    tempo 96
-    n0
-    vs 30
-    i :instr2_normal
-    rpt(2) do
-      a  5, 32; e 4, 16 ; a 4; ve :env_vol_silent_slow; p 2, -32, -16
-      e  5, 32; b 5, 16 ; e 4; ve :env_vol_silent_slow; p 2, -32, -16
-      a  5, 32; e 4, 16 ; a 4; ve :env_vol_silent_slow; p 1, -32, -16
-      i :instr2_quiet
-    end
-
-    vs 60
-    i :instr2_normal
-    a  5, 32; e  4, 16; a 4; ve :env_vol_silent_slow; p 2, -32, -16
-    f  4, 32; a  4, 16; f 3; ve :env_vol_silent_slow; p 2, -32, -16
-    g  4, 32; d  4, 16; g 3; ve :env_vol_silent_slow; p 2, -32, -16
-    e  4, 32; g  3, 16; e 3; ve :env_vol_silent_slow; p 2, -32, -16
-    f  4, 32; b  4, 16; f 3; ve :env_vol_silent_slow; p 2, -32, -16
-    tempo 112
-    e  3, 32; a  3, 16; e 2; ve :env_vol_silent_slow; p 2, -32, -16
     tempo 128
-    p  8, 32, 64      ; d! 2, 16; ce :chord_note12; ve :env_vol_silent_slow; p 16
-                      ; g! 1, 8; ve :env_vol_silent_slow; p 8; ce 0
-    vo; v 0; i :instr1_normal
-    p  4; #a  3, 4;
-    c  3, 32;
-    p  32; #e  3, 32; 
-    a  4, 16;
-    ve :env_vol_silent; p  8, -32, -64
-
-    sync 0
-
-    # part 3
-    tempo 128+64
-    p 16
-    i :instr1_normal
-    rpt(2) do
-      p 16, 32; a  5, 32, 64; e  5, 16, 32; c! 6, 32, 64; g! 5, 16, 64; a  6, 32;     e  5, 16; f! 5, 16
-      p  8,-64; a  5, 32, 64; e  5, 16, 64; c  6, 32, 64; g! 5, 16, 32; a  6, 32;     e  5, 16; f! 5, 16
-      p 16, 32; g! 4, 32, 64; d! 5, 16, 64; b  6, 32, 64; f! 5, 16, 32; g! 5, 32;     d! 5, 16; e  5, 16
-      p 16, 32; e  4, 32, 64; b  5, 16, 64; g! 5, 32, 64; d! 5, 16, 64; e  5, 32, 64; b  5, 16; d  5, 16
-    end
-    rpt(2) do
-      p 16, 32; a  5, 32, 64; e  5, 16, 64; c! 6, 32, 64; g! 5, 16, 64; a  6, 32, 64; e  5, 16;
-      i :instr3_normal; g  5, 16; vo; i :instr1_normal
-      p 16, 32; d  4, 32, 64; a  5, 16, 64; a  6, 32, 64; f! 5, 16, 32; e  5, 32, 64; d  5, 16; c! 5, 16
-      p 16, 32; g! 4, 32, 64; d! 5, 16, 32; c  6, 32;     g  5, 16, 32; g! 5, 32, 64; d! 5, 16; f! 5, 16,-64
-      p  8,-64; c! 4, 32, 64; g! 4, 16, 64; g! 5, 32, 64; e  5, 16, 64; d! 5, 32, 64; c! 5, 16; b  5, 16
-      p 16, 32; f! 4, 32, 64; c! 5, 16, 64; a! 6, 32, 64; f  5, 16, 64; f! 5, 32, 64; d  5, 16, 32; c! 5, 32
-      p 64; b  5, 16, 64; c! 4, 16; b  5, 16, 64; g! 5, 32, 64; d! 5, 16, 64; e  5, 32, 64; c! 5, 16, 32; b  5, 32
-      p 64; a  5, 16, 64; d  4, 32, 64; b  5, 16, 32; f  5, 32, 64; a  5, 16, 64; e  4, 32, 64; b  5, 16, 32; g! 5, 32, 64; d  5, 32, 64
-      p 32; a  5, 32, 64; e  5, 16, 32; c! 6, 32;     g! 5, 16, 32; a  6, 32;     e  5, 16;     e  5, 16;
-    end
-    ve :env_vol_silent_slow2
+    n0
+    i :instr1_quiet
+    rpt(16) { p 32, 32, 32 }
+    l :mloop
+    rpt(16) { p 16; c 3, 32 }
+    puts "counter3: #{counter}"
+    lt :mloop
   end
 
   # volenv_clap1        music_envelope_data :all, [2, 0.999], [2, -0.999], [4, 0], [1, 0.499], [1, -0.5], [15-10, 0]
@@ -345,9 +200,9 @@ class Music
 
   NOTES = ay_tone_periods(min_octave:0, max_octave:7)
 
-  (1...NOTES.length).each do |i|
-    puts "#{NOTES[i-1].to_s.rjust(4)}-#{NOTES[i].to_s.rjust(4)} #{NOTES[i-1]-NOTES[i]} #{(NOTES[i-1].to_f/NOTES[i])}"
-  end
+  # (1...NOTES.length).each do |i|
+  #   puts "#{NOTES[i-1].to_s.rjust(4)}-#{NOTES[i].to_s.rjust(4)} #{NOTES[i-1]-NOTES[i]} #{(NOTES[i-1].to_f/NOTES[i])}"
+  # end
 
                     dw NOTES[11]*2
   notes             dw NOTES[0...12]
@@ -400,7 +255,7 @@ if __FILE__ == $0
   end
 
   music = MusicTest.new 0x8000
-  puts music.debug
+  # puts music.debug
   puts "music size: #{music[:music_end] - music[:music]}"
   puts "TRACK_STACK_TOTAL: #{AYMusic::TRACK_STACK_TOTAL}"
   puts "TRACK_STACK_SIZE : #{AYMusic::TRACK_STACK_SIZE}"
