@@ -13,7 +13,7 @@ require 'utils/shuffle'
 require 'utils/sincos'
 # require 'gdc/bfont'
 require 'utils/bigfont'
-require_relative 'music1'
+require_relative 'music3'
 
 class GDC
   include Z80
@@ -29,7 +29,7 @@ class GDC
   FULL_SCREEN_MODE = false
 
   B_ROTATE_SIMPLY = 0
-  B_ZOOM_SIMPLY   = 1
+  B_ENABLE_ZOOM   = 1
   B_RND_PATTERN   = 1
   B_EFFECT_OVER   = 7
 
@@ -66,7 +66,7 @@ class GDC
   # simple zoom/scale control data
   class RotateState < Label
     angle byte    # only for simple rotating when B_ROTATE_SIMPLY is set
-    scale byte    # only for simple zooming when B_ZOOM_SIMPLY and B_ROTATE_SIMPLY is set
+    scale byte    # only for simple zooming when B_ENABLE_ZOOM and B_ROTATE_SIMPLY is set
     state angle word # union as word
   end
 
@@ -112,7 +112,15 @@ class GDC
     rotate_state  RotateState     # simple scale/angle control
     rotator       Rotator, 2      # 2 rotators: 1st for left to right and 2nd right to left
     x1            word            # normalized pan x shift for current iteration
-    logo_lines    byte, 64        # logo lines shuffle data
+    move_x        word            # simple move delta x
+    rotate_delay  byte            # a delay for rotate delta
+    rotate_delta  byte            # simple rotate delta
+    pattern_bufh  byte            # address (MSB) of the current render buffer
+    anim_wait     byte            # animation slowdown counter
+    anim_frames   word            # current animation frames no animation if 0
+    anim_start    word            # next animation frames
+    seed1         word            # 1st seed for rnd rotate control
+    seed2         word            # 2nd seed for extra tasks' rnd
   end
 
   ########
@@ -128,10 +136,16 @@ class GDC
 
   dvar          addr 0xF000, DemoVars
   dvar_end      addr :next, 0
-  # logo_temp     addr 0xF800             # just a temporary decompress space, currently unused
-  pattern_buf   addr 0xF700             # current pattern data
-  patt_shuffle  addr pattern_buf - 256  # pattern shuffle index
-  mini_stk_end  addr patt_shuffle[0]    # stack for main program
+  pattern_buf   addr 0xF700               # current pattern data
+  pattern_ani1  addr 0xF800               # animation pattern data
+  pattern_ani2  addr 0xF900               # animation pattern data
+  pattern_ani3  addr 0xFA00               # animation pattern data
+  pattern_ani4  addr 0xFB00               # animation pattern data
+  pattern_ani5  addr 0xFC00               # animation pattern data
+  pattern_ani6  addr 0xFD00               # animation pattern data
+  patt_shuffle  addr pattern_buf - 256    # pattern shuffle index
+  mini_stk_end  addr patt_shuffle[0], 2   # stack for main program
+  intr_stk_end  addr mini_stk_end[-80], 2 # stack for interrupt handler
   
   ##########
   # Macros #
@@ -174,17 +188,13 @@ class GDC
   # MAIN #
   ########
 
-  ns :start, use: dvar do
+  ns :start, use: :dvar do
                   exx
                   push hl                   # save hl'
 
-                  call release_key
-
                   di
-
                   # ld  hl, 42423 # 1952 42422
                   # ld  [vars.seed], hl
-
                   ld   [save_sp + 1], sp
                   ld   sp, mini_stk_end     # own stack in "fast" mem
 
@@ -195,6 +205,10 @@ class GDC
 
                   clrmem dvar, +dvar
 
+                  ld  hl, [vars.seed]       # initialize seed
+                  ld  [dvar.seed1], hl
+                  ld  [dvar.seed2], hl
+
                   call make_sincos
 
                   call make_pattern1
@@ -202,6 +216,7 @@ class GDC
                   call make_pattern3
                   call make_pattern4
                   call make_pattern6
+                  call make_figurines
 
                   ld   ix, identity
                   ld   hl, patt_shuffle
@@ -209,7 +224,15 @@ class GDC
                   ld   [dvar.shuffle_state], a
                   call shuffle
 
+                  ld   hl, ludek_anim1
+                  ld   [dvar.anim_start], hl
+                  call animation.restart
+
+                  # ld   a, pattern_buf >> 8
+                  # ld   [dvar.pattern_bufh], a
+
                   ld   hl, 0x6000
+                  # ld   hl, 0x7f00
                   ld   [dvar.rotate_state.state], hl
                   ld   hl, 0x8000
                   ld   [dvar.pattx_control.value], hl
@@ -232,9 +255,9 @@ class GDC
                   sbc  hl, de
                   ld   [hl], a # dvar.pattx_control.cur_incr = neutral
 
-                  ld   a, 0b11011111
+                  # ld   a, 0b11011111
                   # ld   a, [vars.seed + 1]
-                  ld   [dvar.fgcolor], a
+                  # ld   [dvar.fgcolor], a
 
                   ld   hl, dvar.rotate_flags
                   ld   [hl], 1 << B_ROTATE_SIMPLY
@@ -244,8 +267,9 @@ class GDC
                   # ld   a, [vars.seed]
                   # anda 7
                   # xor  6
-                  ld   a, 2
-                  call extra_colors.set_fg_color
+
+                  # ld   a, 2
+                  # call extra_colors.set_fg_color
 
                   ld   hl, dvar.text_delay
                   ld   [hl], 1
@@ -255,18 +279,49 @@ class GDC
                   # start rotating
                   setup_custom_interrupt_handler rotate_int
 
-                  call wait_for_next.reset
+                  ld   hl, extra_text
+                  call wait_for_next.set_extra
+
+                  # ld   hl, -1024
+                  # ld   [dvar.move_x], hl
+
+                  ld   a, 100
+                  call wait_for_next.set_delay
+
+                  ld   a, -1
+                  ld   [dvar.rotate_delta], a
+                  ld   a, 80
+                  call wait_for_next.set_delay
 
                   ld   hl, dvar.rotate_flags
-                  set  B_ZOOM_SIMPLY, [hl]
+                  set  B_ENABLE_ZOOM, [hl]
 
-                  ld   hl, extra_text
-                  ld   [wait_for_next.extra + 1], hl
-                  call wait_for_next
-                  call wait_for_next.reset
+                  ld   a, 120
+                  call wait_for_next.set_delay
+
+                  ld   hl, ludek_anim1a
+                  ld   [dvar.anim_start], hl
+                  ld   a, 40
+                  call wait_for_next.set_delay
+
+                  ld   hl, ludek_anim2
+                  ld   [dvar.anim_start], hl
 
                   ld   hl, greetz_text
                   ld   [dvar.text_cursor], hl
+
+                  # ld   hl, dvar.rotate_flags
+                  # res  B_ENABLE_ZOOM, [hl]
+
+                  ld   hl, extra_spin
+                  call wait_for_next.set_extra
+                  # ld   a, 190
+                  # call wait_for_next.set_delay
+
+                  ld   hl, 0
+                  ld   [dvar.anim_frames], hl
+                  ld   a, pattern_buf >> 8
+                  ld   [dvar.pattern_bufh], a
 
                   # convert current simple rotate angle and scale states to control values
                   ld   hl, dvar.angle_control.tgt_incr
@@ -294,119 +349,107 @@ class GDC
                   ld   hl, dvar.rotate_flags
                   ld   [hl], 0
 
+                  ld   a, 80
+                  call wait_for_next.set_delay
+
+                  ld   hl, dvar.rotate_flags
+                  set  B_RND_PATTERN, [hl]
+
                   ld   hl, extra_hide
-                  ld   [wait_for_next.extra + 1], hl
-                  call wait_for_next
+                  call wait_for_next.set_extra
   
                   halt
                   ld   a, 0b01010101
                   call alt_clear_scr
 
-                  ld   hl, extra_show
-                  ld   [wait_for_next.extra + 1], hl
-                  call wait_for_next
+                  # ld   a, 0b11011111
+                  # ld   [dvar.fgcolor], a
 
-                  ld   hl, extra_colors
-                  ld   [wait_for_next.extra + 1], hl
-                  call wait_for_next
-                  call wait_for_next
-                  ld   hl, dvar.rotate_flags
-                  set  B_RND_PATTERN, [hl]
-                  call wait_for_next
+                  # ld   hl, extra_show
+                  # call wait_for_next.set_extra
+
+                  ld   a, 0b00011111
+                  ld   [dvar.fgcolor], a
 
                   ld   hl, extra_destroy
-                  ld   [wait_for_next.extra + 1], hl
-                  call wait_for_next
+                  call wait_for_next.set_extra
 
     [pattern2, pattern3].each_with_index do |addr, i|
                   ld   hl, addr
                   ld   [dvar.pattern], hl
                   ld   hl, extra_swap
-                  ld   [wait_for_next.extra + 1], hl
-                  call wait_for_next
+                  call wait_for_next.set_extra
 
                   ld   hl, extra_colors
-                  ld   [wait_for_next.extra + 1], hl
-      (3 - i).times do
+                  call wait_for_next.set_extra
+      (1 - i).times do
                   call wait_for_next
       end
     end
-                  ld   hl, extra_random
-                  ld   [wait_for_next.extra + 1], hl
                   ld   a, 0
                   call extra_colors.set_fg_clrbrd
-                  3.times { call wait_for_next }
+                  ld   hl, extra_random
+                  call wait_for_next.set_extra
+                  2.times { call wait_for_next }
 
                   ld   hl, extra_hide
-                  ld   [wait_for_next.extra + 1], hl
-                  call wait_for_next
+                  call wait_for_next.set_extra
                   call wait_for_next.reset
 
                   ld   hl, pattern6
                   ld   [dvar.pattern], hl
                   ld   hl, extra_swap_hide
-                  ld   [wait_for_next.extra + 1], hl
-                  call wait_for_next
+                  call wait_for_next.set_extra
                   call wait_for_next.reset
 
-                  ld   hl, extra_snake
-                  ld   [wait_for_next.extra + 1], hl
                   ld   hl, dvar.snake_control.total
                   ld   [hl], 87 # total
                   inc  hl
                   ld   [hl], 1  # counter
-                  call wait_for_next
+                  ld   hl, extra_snake
+                  call wait_for_next.set_extra
 
                   ld   hl, pattern1
                   ld   [dvar.pattern], hl
                   ld   hl, extra_swap_hide
-                  ld   [wait_for_next.extra + 1], hl
-                  call wait_for_next
+                  call wait_for_next.set_extra
 
                   call clearscr
                   memcpy pattern_buf, pattern1, 256
 
                   ld   hl, extra_text
-                  ld   [wait_for_next.extra + 1], hl
-                  call wait_for_next
+                  call wait_for_next.set_extra
 
                   ld   a, 255
                   ld   [dvar.fgcolor], a
                   ld   hl, extra_destroy
-                  ld   [wait_for_next.extra + 1], hl
-                  call wait_for_next
+                  call wait_for_next.set_extra
                   call wait_for_next.reset
 
     demo_exit     di
                   call music.mute
                   ld   a, 0b00111000
                   call clear_screen
-                  ld   hl, outro_text
-                  ld   [dvar.text_cursor], hl
-    eloop         call extra_text
-                  ld   hl, dvar.rotate_flags
-                  bit  B_EFFECT_OVER, [hl]
-                  jr   Z, eloop
-
     save_sp       ld   sp, 0                # set above
                   restore_rom_interrupt_handler
                   pop  hl                   # restore hl'
                   exx
+                  ld   bc, [vars.seed]
                   ret
-                  # jp   cleanup_out
 
-    ns :wait_for_next, use: dvar do
+    ns :wait_for_next do
       wloop       halt
       extra       call just_wait
-                  key_pressed?
-                  jr   NZ, demo_exit
+                  call rom.break_key
+                  jr   NC, demo_exit
                   ld   hl, dvar.rotate_flags
                   bit  B_EFFECT_OVER, [hl]
                   jr   Z, wloop
                   res  B_EFFECT_OVER, [hl]
                   ret
+      set_delay   ld   [dvar.general_delay], a
       reset       ld   hl, just_wait
-                  ld   [extra + 1], hl
+      set_extra   ld   [extra + 1], hl
                   jr   wloop
       just_wait   ld   hl, dvar.general_delay
                   dec  [hl]
@@ -419,17 +462,6 @@ class GDC
   ###############
   # Subroutines #
   ###############
-
-  # clear screen using CL-ALL and reset border
-  # cleanup_out   call rom.cl_all
-  #               ld   a, [vars.bordcr]
-  #               call set_border_cr
-  #               ret
-                # ld  a, 2
-                # call rom.chan_open
-                # ld   de, outro_text
-                # ld   bc, +outro_text
-                # jp   rom.pr_string
 
   # create pixel pattern alternating ~ register A each line
   ns :alt_clear_scr, use: mem do
@@ -460,16 +492,14 @@ class GDC
                 ret
   end
 
-  # waits until no key is being pressed
-  release_key   halt
-                key_pressed?
-                jr   NZ, release_key
+  # next random number from math_i library
+  next_rnd      rnd
                 ret
 
-  # next random number from math_i library
-  next_rnd      ld  hl, [vars.seed]
-                rnd
-                ld  [vars.seed], hl
+  # entry point for extra task
+  next_rnd2     ld  hl, [dvar.seed2]
+                call next_rnd
+                ld  [dvar.seed2], hl
                 ret
 
   # Parameters:
@@ -482,7 +512,7 @@ class GDC
   make_sincos   create_sincos_from_sintable sincos, sintable:sintable
 
   # create shuffled array
-  shuffle       shuffle_bytes_source_max256 next_rnd, target:hl, length:a, source:forward_ix
+  shuffle       shuffle_bytes_source_max256 next_rnd2, target:hl, length:a, source:forward_ix
                 ret
 
   forward_ix    jp   (ix)
@@ -526,7 +556,7 @@ class GDC
                 exx                   # save screen address and height
                 ex   af, af           # restore code
                 char_ptr_from_code [vars.chars], a, tt:de
-                enlarge_char8_16 compact:false, over: :or, assume_chars_aligned:true
+                enlarge_char8_16 compact:false, over: :or, scraddr:nil, assume_chars_aligned:true
                 ret
 
   #   frms      byte
@@ -580,7 +610,9 @@ class GDC
                   ret  # updated value in de
 
     change_target push hl
+                  ld  hl, [dvar.seed1]
                   call next_rnd
+                  ld  [dvar.seed1], hl
                   ex   de, hl  # de=rnd()
                   pop  hl
                   ex   af, af
@@ -601,7 +633,7 @@ class GDC
   # dx2: (scale*-Math.sin(angle) * 256).truncate,
   # dy2: (scale*Math.cos(angle) * 256 * 16).truncate
 
-  with_saved :rotate_int, :all_but_ixiy, :exx, :ex_af, :all_but_ixiy, use: sincos do
+  with_saved :rotate_int, :all_but_ixiy, :exx, :ex_af, :all_but_ixiy, ret: :after_ei do
                   ld   [save_sp + 1], sp
             # ld   a, 1
             # out  (254), a
@@ -627,7 +659,8 @@ class GDC
                   pop  de         # de: rotator.dx1
                   ld   a, h       # a: x (hi)
                   exx
-                  ld   b, pattern_buf >> 8
+                  ld   hl, dvar.pattern_bufh
+                  ld   b, [hl]
                   ld   hl, [dvar.patty_control.value] # pattern_y shift as a fraction (-0.5)...(0.5)
                   pop  de         # de: rotator.dy2 (discard)
                   pop  de         # de: rotator.dy1
@@ -696,7 +729,9 @@ class GDC
 
             # ld   a, 5
             # out  (254), a
+                  ld   sp, intr_stk_end
                   call music.play
+                  call animation
       #             ld   b, 20
       # busyloop    nop
       #             djnz busyloop
@@ -707,17 +742,34 @@ class GDC
             # out  (254), a
                   rra  # B_ROTATE_SIMPLY
                   jr   NC, update_ctrls
+
+                  # ld   hl, [dvar.move_x] # -683
+                  # ld   sp, dvar.pattx_control.value
+                  # pop  bc
+                  # add  hl, bc
+                  # push hl
+
                   # angle 0 - 255, scale 0-255 (1.0)
                   # c = angle (0..255), b = scale 0..7f
                   # prepare_rotator
                   ld   sp, dvar.rotate_state.state
                   pop  bc # state: c = angle (0..255), b = scale 0..7f
 
-                  dec  c  # rotate
-                  rra  # B_ZOOM_SIMPLY
-                  jr   NC, skip_scale_sm
+                  # rra  # B_ENABLE_ROTATE
+                  # jr   NC, skip_rotate
+                  ex   af, af
+                  ld   a, [dvar.rotate_delta]
+                  add  c
+                  ld   c, a
+                  ex   af, af
+                  # dec  c  # rotate
 
-                  dec  b  # scale
+    skip_rotate   rra  # B_ENABLE_ZOOM
+                  # jr   NC, skip_scale_sm
+                  sbc  a, a
+                  add  b
+                  ld   b, a
+                  # dec  b  # scale
                   push bc
                   jp   P, start_rotate0 # scale >= 0
                   xor  a  # scale < 0 ? scale = - (scale + 1)
@@ -725,8 +777,8 @@ class GDC
                   sub  b  # a = 0 - (scale + 1)
                   ld   b, a
                   jr   start_rotate1
-    skip_scale_sm push bc
-                  jr   start_rotate0
+    # skip_scale_sm push bc
+    #               jr   start_rotate0
 
     update_ctrls  rra  # B_RND_PATTERN
                   jr   NC, skip_patt_ct
@@ -838,7 +890,8 @@ class GDC
                   add  hl, de     # hl: x -= dx1
                   ld   a, h       # a: x (hi)
                   exx
-                  ld   b, pattern_buf >> 8
+                  ld   hl, dvar.pattern_bufh
+                  ld   b, [hl]
                   ld   hl, [dvar.patty_control.value] # pattern_y shift as a fraction (-0.5)...(0.5)
 
                   ld   sp, dvar.rotator[0].dy1
@@ -926,12 +979,24 @@ class GDC
     save_sp       ld   sp, 0      # set on top
             # xor  a
             # out  (254), a
+  end # ei; ret
+
+  ns :extra_spin do
+                  ld   hl, dvar.rotate_delay
+                  ld   a, 64
+                  add  [hl]
+                  ld   [hl], a
+                  ret  NC
+                  inc  hl
+                  dec  [hl]
+                  ld   a, [hl]
+                  cp   -64
+                  ret  NZ
+                  jr   signal_next
   end
-                  ei
-                  ret
 
   # toggle fg colors
-  ns :extra_colors, use: mem do
+  ns :extra_colors do
                   ld   hl, dvar.fgcolor
                   inc  [hl]
                   jr   NZ, apply
@@ -993,7 +1058,7 @@ class GDC
                   ld   de, [dvar.at_position]
     next_char     ld   a, [hl]
                   ora  a
-                  jp   Z, signal_next
+                  jr   Z, signal_next
                   inc  hl
                   jp   M, check_control
                   ld   [dvar.text_cursor], hl
@@ -1042,7 +1107,7 @@ class GDC
     apply         ld   a, [hl]
                   anda 3
                   ret  NZ
-                  call next_rnd
+                  call next_rnd2
                   ld   a, h # rnd lo
                   ld   h, pattern_buf >> 8 # pattern hi
                   ld   d, 0b11111000 # attr mask
@@ -1095,7 +1160,7 @@ class GDC
                   jr   NZ, randomize
                   pop  hl
                   jp   signal_next
-    randomize     call next_rnd
+    randomize     call next_rnd2
                   ex   de, hl
                   pop  hl
                   ld   a, d
@@ -1185,6 +1250,31 @@ class GDC
                   push de
     apply         xor  a
                   jp   extra_show.mix_fg_color
+  end
+
+  # animate frames at dvar.pattern_bufh
+  ns :animation do
+                  ld   hl, [dvar.anim_frames]
+    get_frame_ck  ld   a, l
+                  ora  h
+                  ret  Z  # no animation
+                  ld   de, dvar.anim_wait
+                  ld   a, [de]
+                  anda a
+                  jr   NZ, skip_frame
+                  ld   a, [hl] # MSB frame address
+                  ld   [dvar.pattern_bufh], a
+                  inc  hl
+                  ld   a, [hl] # next counter
+                  anda a
+                  jr   Z, restart
+                  inc  hl
+                  ld   [dvar.anim_frames], hl
+    skip_frame    dec  a
+                  ld   [de], a
+                  ret
+    restart       ld   hl, [dvar.anim_start]
+                  jr   get_frame_ck
   end
 
   ns :make_pattern1 do
@@ -1313,6 +1403,133 @@ class GDC
                   ret
   end
 
+  ns :make_figurines do
+                  clrmem pattern_ani1, 3*256, 0x02
+                  clrmem pattern_ani4, 3*256, 0b01111110
+                  ld   c, 0b10000111 # counter | color mask
+                  ld   hl, ludek1_data
+                  ld   d, pattern_ani1 >> 8
+                  xor  a
+                  # 1st create 3 times a step 1 figurine on all patterns
+                  call make_figurines_step1
+                  # 2nd step
+                  ld   hl, ludek2_data
+                  ld   d, pattern_ani2 >> 8
+                  call make_figurine_plane
+                  # 3rd step
+                  # ld   hl, ludek3_data
+                  # ld   d, pattern_ani3 >> 8
+                  call make_figurine_plane
+                  # 1st step color bit 0
+                  # ld   hl, ludek1a_data1
+                  ld   c, 0b11110111 # bit 0
+                  cpl    # a: 0xFF
+                  # ld   d, pattern_ani4 >> 8
+                  call make_figurines_step1
+                  # 2nd step
+                  ld   hl, ludek2a_data1
+                  ld   d, pattern_ani5 >> 8
+                  call make_figurine_plane
+                  # 3rd step
+                  # ld   hl, ludek3a_data1
+                  # ld   d, pattern_ani6 >> 8
+                  call make_figurine_plane
+                  # 1st step color bit 1
+                  # ld   hl, ludek1a_data2
+                  ld   c, 0b11101111 # bit 1
+                  ld   d, pattern_ani4 >> 8
+                  call make_figurines_step1
+                  # 2nd step
+                  ld   hl, ludek2a_data2
+                  ld   d, pattern_ani5 >> 8
+                  call make_figurine_plane
+                  # 3rd step
+                  # ld   hl, ludek3a_data2
+                  # ld   d, pattern_ani6 >> 8
+                  call make_figurine_plane
+                  # 1st step color bit 2
+                  ld   hl, ludek1a_data4
+                  ld   c, 0b11011111 # bit 2
+                  ld   d, pattern_ani4 >> 8
+                  call make_figurines_step1
+                  ld   hl, ludek1b_data4
+                  ld   d, pattern_ani4 >> 8
+                  call make_figurines_step1
+                  # 2nd step
+                  ld   hl, ludek2a_data4
+                  ld   d, pattern_ani5 >> 8
+                  call make_figurine_plane
+                  # 3rd step
+                  # ld   hl, ludek3a_data4
+                  # ld   d, pattern_ani6 >> 8
+                  call make_figurine_plane
+                  # 1st step color bit 4 (brightness)
+                  # ld   hl, ludek1a_data8
+                  ld   c, 0b10111111 # bit 4
+                  ld   d, pattern_ani4 >> 8
+                  call make_figurines_step1
+                  # 2nd step
+                  ld   hl, ludek2a_data8
+                  ld   d, pattern_ani5 >> 8
+                  call make_figurine_plane
+                  # 3rd step
+                  # ld   hl, ludek3a_data8
+                  # ld   d, pattern_ani6 >> 8
+                  call make_figurine_plane
+                  ret
+  end
+
+  ns :make_figurines_step1 do
+                  ld   b, 3
+    figloop       push bc
+                  push hl
+                  call make_figurine_plane
+                  pop  hl
+                  pop  bc
+                  djnz figloop
+                  ret
+  end
+
+  # a : pre xor
+  # d : patternXY >> 8
+  # hl: ludek data
+  # c : 0b10001111 # color mask
+  ns :make_figurine_plane do
+                  ld   e, [hl] # y0,x0
+                  inc  hl
+                  ld   b, [hl] # counter
+                  inc  hl
+    mloop         push af
+                  push bc
+                  push de
+                  xor  [hl]
+                  inc  hl
+                  push hl
+                  ex   de, hl
+                  scf
+                  rla
+                  ld   b, a
+    bitloop       sbc  a
+                  ld   e, a                    # c: value to set
+                  xor  [hl]                    # original ^ value
+                  anda c                       # (original ^ value) & ~mask
+                  xor  e                       # ((original ^ value) & ~mask) ^ value
+                  ld   [hl], a
+                  inc  l
+                  rl   b
+                  jr   NZ, bitloop
+                  pop  hl
+                  pop  de
+                  pop  bc
+                  ld   a, e
+                  add  0x10
+                  ld   e, a
+                  pop  af
+                  djnz mloop
+                  inc  d                       # next pattern
+                  ret
+  end
+
   end_of_code     label
 
   ########
@@ -1331,58 +1548,55 @@ class GDC
   # 0xF8: backspace
   # 0x01..0x1f: wait this many frames * 8
   # 0xFF: clear ink screen
-  intro_text    data "\xFF\xF1\x91\x80G.D.C.\x10\x82\xA0presents\x1F\xFF\xF3\x88\x4FV O M I D\x97\x674k\x1f\xff"
+  intro_text    data "\x08\x92\x82G.D.C.\x04\x82\xA0presents\x1F\xFF\xF3\x85\x4FV O R T E X\x97\x674k\x04"
                 db 0
-  greetz_text   data "\x1f\x0f\xff\xf1\x81\x18Respec' @:\x92\x30\x04Fred\x92\x40\x04Grych\x92\x50\x04KYA\x92\x60\x04M0nster\x92\x70\x04Tygrys\x92\x80\x04Voyager\x92\x90\x04Woola-T"
-                data "\x1f\xff\x9A\xA0'18\x82\x10\xf5ASM:\x04\x92\x10r-type"
-                data "\x04\x82\x30MSX:\x04\x90\x30Floppys"
-                data "\x04\x82\x50GFX:\x04\x92\x50r-type"
-                data "\x04\x82\x70FONT:\x04\x98\x70ROM\x83\x81+ antialiasing"
-                data "\x1f\xff\x82\x30\xf0Thanks\x89\x48for\x8A\x60watching!\x04\x8e\x80BYE!!!\x1f"
+  greetz_text   data "\xF1\x81\x18Respec' @:\x92\x30\x04Fred\x92\x40\x04Grych\x92\x50\x04KYA\x92\x60\x04M0nster\x92\x70\x04Tygrys\x92\x80\x04Voyager\x92\x90\x04Woola-T"
+                data "\x1F\xFF\xF4\x81\x10Made\x8A\x20for\x8F\x30SPECCY\x96\x4004.19"
+                data "\x04\x84\x60by r-type"
+                data "\x04\x86\x80of GDC"
+                data "\x1F\xFF\x82\x30\xf0Thanks\x89\x48for\x8A\x60watching!\x04\x8e\x80BYE!!!\x1F"
                 db 0
-  # outro_text    data "Some effects in this demo dependon pseudorandomness.\r\rUse ZX Basic RANDOMIZE command\rto set up rng seed and run againwith USR 32768\r"
-  outro_text    data "\x80\x00Some effects in\x80\x10this demo depend\x80\x20on pseudorandom\x80\x30code.\x80\x40Use ZX Basic's\x80\x50RANDOMIZE n\x80\x60to set up rng\x80\x70seed and run\x80\x80again with\x80\x90USR 32768\x00"
 
   pattern1_data db 0xA6, 0x00, 0b01111000,
                                0b10000000,
                                0b10000000,
                                0b10001110,
                                0b10000000,
-                               0b10000000
-                db 0x26, 0x10, 0b01000000,
+                               0b10000000,
+                   0x26, 0x10, 0b01000000,
                                0b01000000,
                                0b01000000,
                                0b01000110,
                                0b01100110,
-                               0b01111100
-                db 0xA6, 0x80, 0b01111100,
+                               0b01111100,
+                   0xA6, 0x80, 0b01111100,
                                0b10000110,
                                0b10000000,
                                0b10000000,
                                0b10000000,
-                               0b10000010
-                db 0x26, 0x90, 0b01000000,
+                               0b10000010,
+                   0x26, 0x90, 0b01000000,
                                0b01000000,
                                0b01000000,
                                0b01000000,
                                0b01000100,
-                               0b01111100
-                db 0xA8, 0x48, 0b11111000,
+                               0b01111100,
+                   0xA8, 0x48, 0b11111000,
                                0b10000100,
                                0b10000010,
                                0b10000000,
                                0b10000000,
                                0b10000000,
                                0b10000000,
-                               0b10000000
-                db 0x27, 0x58, 0b01111000,
+                               0b10000000,
+                   0x27, 0x58, 0b01111000,
                                0b01000100,
                                0b01000110,
                                0b01000110,
                                0b01000110,
                                0b01111100,
-                               0b01111000
-                db 0
+                               0b01111000,
+                   0
 
                 # 0: bcccnnnn b - bright, c - color, n - counter
                 # 1: hhhhwwww h - height, w - width
@@ -1428,7 +1642,16 @@ class GDC
   #                  0x11, 0x22, 0x77, # blue 7x7+2x2
   #                  0
 
-  ludek1_data   db 0b00111100,
+  ludek_anim1   db pattern_ani1>>8, 6, pattern_ani2>>8, 6, pattern_ani3>>8, 6, pattern_ani2>>8, 0
+  ludek_anim2   db pattern_ani4>>8, 6, pattern_ani5>>8, 6, pattern_ani6>>8, 6, pattern_ani5>>8, 0
+  ludek_anim1a  db [pattern_ani1>>8, 1, pattern_ani4>>8, 1]*3,
+                   [pattern_ani2>>8, 1, pattern_ani5>>8, 1]*3,
+                   [pattern_ani3>>8, 1, pattern_ani6>>8, 1]*3,
+                   [pattern_ani2>>8, 1, pattern_ani5>>8, 1]*2,
+                   pattern_ani2>>8, 1, pattern_ani5>>8, 0
+
+  ludek1_data   db (1<<4|4), 15,
+                   0b00111100,
                    0b01111110,
                    0b00110100,
                    0b00111110,
@@ -1444,7 +1667,9 @@ class GDC
                    0b00011000,
                    0b00011100
 
-  ludek2_data   db 0b01111110,
+  # same as ludek2a_data2
+  ludek2_data   db (9<<4|4), 7,
+                   0b01111110,
                    0b01110110,
                    0b01111010,
                    0b00111100,
@@ -1452,12 +1677,132 @@ class GDC
                    0b01101110,
                    0b01110111
 
-  ludek3_data   db 0b11111110,
+  # same as ludek3a_data2
+  ludek3_data   db (9<<4|4), 7,
+                   0b11111110,
                    0b11011011,
                    0b10111101,
                    0b01111100,
                    0b11101111,
                    0b11000111,
+                   0b11100010
+
+  # 1 - clear color bit-0
+  # step 1
+  ludek1a_data1 db (6<<4|4), 6,
+                   0b00011000,
+                   0b00111100,
+                   0b01111110,
+                   0b01101110,
+                   0b01101110,
+                   0b01110110
+  # step 2
+  ludek2a_data1 db (9<<4|4), 3,
+                   0b01111110,
+                   0b01110110,
+                   0b01111010
+  # step 3
+  ludek3a_data1 db (9<<4|4), 3,
+                   0b11111110,
+                   0b11011011,
+                   0b10011001
+
+  # 1 - clear color bit-1
+  # step 1
+  ludek1a_data2 db (3<<4|4), 13,
+                   0b00001000,
+                   0b00000000,
+                   0b00000000,
+                   0b00011000,
+                   0b00111100,
+                   0b01111110,
+                   0b01101110,
+                   0b01101110,
+                   0b01110110,
+                   0b00111100,
+                   0b00011000,
+                   0b00011000,
+                   0b00011100
+  # step 2
+  ludek2a_data2 ludek2_data[0]
+                # db (9<<4|4), 7,
+                #    0b01111110,
+                #    0b01110110,
+                #    0b01111010,
+                #    0b00111100,
+                #    0b01110110,
+                #    0b01101110,
+                #    0b01110111
+  # step 3
+  ludek3a_data2 ludek3_data[0]
+                # db (9<<4|4), 7,
+                #    0b11111110,
+                #    0b11011011,
+                #    0b10111101,
+                #    0b01111100,
+                #    0b11101111,
+                #    0b11000111,
+                #    0b11100010
+
+  # 1 - clear color bit-2
+  # step 1
+  ludek1a_data4 db (1<<4|4), 2,
+                   0b00111100,
+                   0b01111110
+  ludek1b_data4 db (12<<4|4), 4,
+                   0b00111100,
+                   0b00011000,
+                   0b00011000,
+                   0b00011100
+  # step 2
+  ludek2a_data4 db (12<<4|4), 4,
+                   0b00111100,
+                   0b01110110,
+                   0b01101110,
+                   0b01110111
+  # step 3
+  ludek3a_data4 db (11<<4|4), 5,
+                   0b00100100,
+                   0b01111100,
+                   0b11101111,
+                   0b11000111,
+                   0b11100010
+
+  # 1 - clear color bright bit
+  # step 1
+  ludek1a_data8 db (1<<4|4), 15,
+                   0b00111100,
+                   0b01111110,
+                   0b00110100,
+                   0b00111110,
+                   0b00011100,
+                   0b00010000,
+                   0b00000000,
+                   0b00000000,
+                   0b00011000,
+                   0b00011000,
+                   0b00101100,
+                   0b00000000,
+                   0b00000000,
+                   0b00000000,
+                   0b00011100
+  # step 2
+  ludek2a_data8 db (9<<4|4), 7,
+                   0b00001000,
+                   0b00000100,
+                   0b00110000,
+                   0b00000000,
+                   0b00000000,
+                   0b00000000,
+                   0b01110111
+  # step 3
+  ludek3a_data8 db (9<<4|4), 7,
+                   0b00100100,
+                   0b01000010,
+                   0b10000001,
+                   0b00000000,
+                   0b00000001,
+                   0b00000001,
                    0b11100010
 
   import        Music, :music, override: {'music.sincos': sincos}
@@ -1467,7 +1812,7 @@ class Program
   include Z80
   include Z80::TAP
 
-  GDC_SEED = 9998 # 9998, 1110, 2408, 42420, 42423, 42422, 1952, 4266, 32768, 1647, 47, 69, 310, 1906, 12345, 10101, 2357, 100, 200, 2334, 1508, 2765, 156, 7777, 31744
+  GDC_SEED = 12347 # 640, 65535, 7777, 351, 9291, 6798, 4422, 1742
 
   GDC = ::GDC.new 0x8000
 
@@ -1506,18 +1851,28 @@ def display_labels(program, names)
 end
 
 display_labels gdc, %w[
-start end_of_code
-rotate_int
+start +start end_of_code
+rotate_int +rotate_int
+control_value +control_value
 pattern1
 pattern3
 pattern6
 pattern2
 pattern4
-make_pattern1
-make_pattern2
-make_pattern3
-make_pattern4
-make_pattern6
+make_pattern1 +make_pattern1
+make_pattern2 +make_pattern2
+make_pattern3 +make_pattern3
+make_pattern4 +make_pattern4
+make_pattern6 +make_pattern6
+make_figurines +make_figurines
+make_figurines_step1 +make_figurines_step1
+make_figurine_plane +make_figurine_plane
+pattern_ani1
+pattern_ani2
+pattern_ani3
+pattern_ani4
+pattern_ani5
+pattern_ani6
 dvar.logo_current
 dvar.logo_mask
 dvar.text_delay
@@ -1531,15 +1886,16 @@ dvar.patty_control
 dvar.snake_control
 dvar.rotate_state
 dvar.rotator
-dvar.logo_lines
+dvar.seed1 dvar.seed2
 dvar
 +dvar
 dvar_end
-mini_stk_end
+mini_stk_end intr_stk_end
 sincos dvar.pattern dvar.fgcolor dvar.at_position patt_shuffle pattern_buf
 music music.init music.play music.mute music.music music.music.play
 music.instrument_table music.notes music.ministack music.note_to_cursor music.fine_tones
 music.track_stack_end music.empty_instrument
+music.music_control.counter
 music.music_control +music.music_control
 ]
 
