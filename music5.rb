@@ -155,6 +155,7 @@ class Music
       g  3, 32; d! 3, 32; f  3, 32; a  4, 32; f  3, 32; d! 3, 32;
     end
     # part 5
+    p 64
     i :instr1_loud
     g  3
     p 8, 16
@@ -186,32 +187,32 @@ class Music
     # rpt(32) { p 32, 32, 32 }
 
     # part 1-6
-    sub :track_a_part1_6
+    # sub :track_a_part1_6
 
     # part 7
-    p 16, 64
     i :instr1_loud;
     c 3, 8, 16
     m2; ve 0; mn :mask_thrr2
     rpt(6) { d  3, 32; e  3, 32; f  3, 32; }
     p 32
     # part 8
+    p 16, 32, 32
     mn 0;
-    p 16
-    # tempo 128+32
     rpt(5) { d  3, 32; e  3, 32; f  3, 32; }
     v 9
     rpt(2) { g  3, 32; a 4, 32; b  4, 32; }
     v 8
     d  3, 32; e  3, 32; f  3, 32; g  3, 16, 32
     ve :env_vol_silent_slow2
-    tempo 128
     m1; rpt(2) { c 3, 16, 32 }
     m2; ve 0; rpt(5) { d  3, 32; e  3, 32; f  3, 32; }
+    puts "counter1: #{tick_counter}"
     # part 9
+    p 32
     m1; i :instr1_loud;
-    f  3, 16; b  4, 16; e  4, 16, 32; a  5, 16; d  5, 16, 32; g  5, 16, 32;
-    c  6, 16; i :instr1_normal; g  5, 32; c  5, 16;
+    f  3, 16, 32; b  4, 16; e  4, 16, 32; a  5, 16; d  5, 16, 32; g  5, 16, 32;
+    i :instr3_loud;
+    c  6, 16, 32; i :instr1_normal; g  5, 32; c  5, 16;
     rpt(9) { c  6, 32; g  5, 32; c  5, 32; }
     i :instr1_quiet;
     rpt(2) { g  5, 32; d  5, 32; g  4, 32; }
@@ -226,9 +227,11 @@ class Music
     rpt(2) { g  4, 32; d  4, 32; g  3, 32; }
     rpt(2) { c  4, 32; g  3, 32; c  3, 32; }
     rpt(2) { g  3, 32; d  3, 32; g  2, 32; }
+    puts "counter1: #{tick_counter}"
     # part 10
     ve :env_vol_silent_sl_saw
-    rpt(16) { g  3, 32; d  3, 32; g  2, 32; }
+    g  3, 32, 64; d  3, 32, 64; g  2, 32, 64;
+    rpt(15) { g  3, 32; d  3, 32; g  2, 32; }
     ve 0; v 7
     # part 11
     g  3, 32; d  3, 32; g  2, 32;
@@ -301,14 +304,12 @@ class Music
     c  5, 32; d  5, 32; e  5, 32;
     d  5, 32; e  5, 32; f! 5, 32;
     e  5, 32; f! 5, 32; g! 5, 32;
-    puts "counter1: #{tick_counter}"
     # part 19
     m2; ve 0
     rpt(24) { f! 5, 32; g! 5, 32; a! 6, 32; }
     m1;
     rpt(2) { g! 5, 32; a! 6, 32; c  6, 32; }
     rpt(2) { a! 6, 32; c  6, 32; d  6, 32; }
-    puts "counter1: #{tick_counter}"
     # part 20
     m1; i :instr1_normal;
     ce :chord_note2_4_6; a! 6, 8, 16;
@@ -353,7 +354,8 @@ class Music
     end
     # part 5
     i :instr2_loud
-    np 1; c  0; np 16; c 1; vs 4; va 0.3
+    np 1; c  0, 64
+    np 16; c 1; vs 4; va 0.3
     p 8, 16
     rpt(2) do
       p 1,2,16,32, -32; np 0; vo; mn 0
@@ -387,25 +389,24 @@ class Music
     # end
 
     # part 1-6
-    sub :track_b_part1_6
+    # sub :track_b_part1_6
 
     # part 7
-    p 16, 64
     i :instr1_loud;
     f  0, 16, 32; g  0, 16, 32; g  0,  4, 32; f  0,  8, 16;
-    i :instr1_quiet; g  0, 16; g  0, 16
+    i :instr1_normal; g  0, 16; i :instr1_quiet; g  0, 16
     # part 8
-    p 16
-    # tempo 128+32
-    i :instr3_loud; d  2,  16, 32; g  2, 16, 32; f  2,  4,  8;
-    i :instr3_normal; b  3, 16, 32; i :instr3_loud; g  2, 16, 32; g  0, 16, 32
-    tempo 128
-    d  2, 16, 32; g  2, 16, 32; f  2, 4, 8, 16, 32
+    p 32
+    p 64; i :instr2_normal; d  2, 16, 32, 64; i :instr1_loud; g  2, 16, 32; i :instr3_loud; f  2,  4,  8, 32, 64;
+    i :instr3_normal; b  3, 16, 32; i :instr1_loud; g  2, 16, 32; g  0, 16, 32, 64
+    i :instr3_loud; d  2, 16, 32; g  2, 16, 32; i :instr1_loud; f  2, 4, 8, 16, 32
+    puts "counter2: #{tick_counter}"
     # part 9
+    p 32
     i :instr1_loud;
-    g  3, 16, 32; c  4, 16; f  4, 32; f  4, 16; b  5, 16; e  5, 16, 64; a  6, 16, 64;
-    # i :instr2_loud;
-    c  0, 8, 32;
+    g  3, 16, 32, 32; c  4, 16; f  4, 32; f  4, 16; b  5, 16; e  5, 16, 64; a  6, 16, 64;
+    i :instr3_loud;
+    c  0, 8, 32, 32;
     ce :chord_note12; g  2, 16, 32; g  2, 16; f  2, 16; e  2, 16; d  2, 16, 32; c  2,  16, 32; c  2, 4, 8
     i :instr2_normal;
     ce 0; d  0, 8, 16; e  0, 8, 16; f  0, 8, 16;
@@ -414,10 +415,12 @@ class Music
     ce :chord_note12; g  2, 16, 32; g  2, 16; f  2, 16; e  2, 16; d  2, 16, 32; c  2,  16, 32; c  2, 4, 8
     i :instr1_loud;
     ce 0; f  0, 8, 16; g  0, 8, 16; rpt(2) { f  0, 8, 16; e  0, 8, 16; }; f  0, 8, 16;
+    puts "counter2: #{tick_counter}"
     # part 10
-    i :instr2_normal; f! 0, 16, 32;
-    i :instr1_quiet; e  2, 1, 4, 8, 32
+    i :instr2_normal; f! 0, 16, 32, 32, 64;
+    i :instr3_quiet; e  2, 1, 4, 8, 32
     # part 11
+    i :instr1_quiet;
     e  2, 16, 32; f! 2, 16, 32; rpt(4) { a  3, 16, 32; }
     rpt(2) { b  3, 16, 32; }; d  3, 16, 32; e  3, 16, 32;
     # part 12
@@ -457,14 +460,12 @@ class Music
     i :instr1_loud
     # ce :chord_note12; 
     e  0, 4, 8; d  0, 4, 8;
-    puts "counter2: #{tick_counter}"
     # part 19
     i :instr1_normal; c! 0, 2, 4
     i :instr1_quiet;
     # ce 0;
     e  2, 16, 32; f! 2, 16, 32; a! 3, 4, 8; d  3, 8, 16; f! 3, 16, 32; g! 3, 16, 32;
     e  3, 2, 4, 8, 16;
-    puts "counter2: #{tick_counter}"
     # part 20
     c! 0,  8, 16;
     vs 45; i :instr1_quiet_vib
@@ -495,6 +496,7 @@ class Music
     i :instr1_normal
     rpt(4) { c  3, 32, 32, 32 ; d  3, 32, 32, 32 }
     # part 5
+    p 64
     i :instr2_normal
     c  3
     p 8, 16
@@ -519,7 +521,7 @@ class Music
       ce 0
     end
     # part 6
-    i :instr3_loud;
+    i :instr1_loud;
     rpt(2) do
       a! 2, 8, 16; a! 3, 4, 32; g  2, 8, 16; g  1, 16, 32; 
     end
@@ -536,25 +538,25 @@ class Music
     w 1
 
     # part 1-6
-    sub :track_c_part1_6
+    # sub :track_c_part1_6
 
     # part 7
-    p 16, 64
     i :instr1_loud;
     f  1, 16, 32; g  1, 16, 32; g  1,  4, 32; f  1,  8, 16;
-    i :instr1_quiet; g  1, 16, 32; g  1, 32
+    i :instr1_normal; g  1, 16, 32; i :instr1_quiet; g  1, 32
     # part 8
-    p 16
-    # tempo 128+32
-    i :instr3_quiet; c  3, 16, 32;
-    i :instr3_loud;  b  3, 16, 32; a  3,  4, 32; c  3, 16, 32; d  3, 16, 32; b  3, 8; g  1, 16
-    tempo 128
+    p 32
+    i :instr3_quiet; c  3, 16, 32, 32;
+    i :instr3_loud;  b  3, 16, 32; a  3,  4, 32, 32, 64, 64; i :instr1_loud; c  3, 16, 32;
+    i :instr3_loud;  d  3, 16, 32; b  3, 8; i :instr1_loud; g  1, 16
     p 16, 32
-    b  3, 16, 32; a  3, 4, 8; c  3, 16, 32
+    i :instr3_loud;  b  3, 16, 32; a  3, 4, 8; i :instr1_loud; c  3, 16, 32
+    puts "counter3: #{tick_counter}"
     # part 9
     i :instr1_loud;
-    p 32; a  4, 16; d  4, 16, 32; g  4, 16, 32; c  5, 16; f  5, 32, -64; f  5, 16; b  6, 16, -64;
-    c  1, 16, 32, 64; d  5, 16, -64;
+    p 16, 32; a  4, 16; d  4, 16, 32; g  4, 16, 32; c  5, 16; f  5, 32, -64; f  5, 16; b  6, 16, -64;
+    i :instr3_loud;
+    c  1, 16, 32, 64, 32; i :instr1_loud; d  5, 16, -64;
     i :instr2_loud; d  3, 16, 32; d  3, 16; c  3, 16; b  3, 16;
     i :instr1_loud; a  3, 16, 32; g  2,  16, 32; g  2, 4, 8
     i :instr2_normal;
@@ -565,9 +567,11 @@ class Music
     a  3, 16, 32; g  2,  16, 32; g  2, 4, 8
     i :instr1_loud;
     f  1, 8, 16; g  1, 8, 16; rpt(2) { f  1, 8, 16; e  1, 8, 16; }; f  1, 8, 16;
+    puts "counter3: #{tick_counter}"
     # part 10
-    f! 1, 8; i :instr1_normal; a! 3, 32; c! 3, 32; i :instr1_quiet; a! 3, 1, 4, 16;
+    f! 1, 8, 32, 64; i :instr3_normal; a! 3, 32; c! 3, 32; i :instr3_quiet; a! 3, 1, 4, 16;
     # part 11
+    i :instr1_quiet;
     p  32; a! 3, 32; c! 3, 16; c  3, 32; d! 3, 32;
     rpt(4) { p 32; d! 3, 32; f! 3, 32; }
     rpt(2) { p 32; f  3, 32; g! 3, 32; };
@@ -626,12 +630,10 @@ class Music
     rpt(2) { c  3, 16, 32; }; d  3, 16, 32; e  3, 16, 32;
     f! 3, 16, 32; g! 3, 16, 32; a! 4, 16, 32; c  4, 16, 32; d  4, 16, 32; e  4, 16, 32;
     f! 4, 16, 32; g! 4, 16, 32; a! 5, 16, 32; c  5, 16, 32; d  5, 16, 32;
-    puts "counter3: #{tick_counter}"
     # part 19
     rpt(24) { e  5, 16, 32; }
     rpt(2) { f! 5, 16, 32; } 
     rpt(2) { g! 5, 16, 32; }
-    puts "counter3: #{tick_counter}"
     # part 20
     i :instr1_normal
     c! 1,  8, 16;
