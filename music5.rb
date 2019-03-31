@@ -73,6 +73,9 @@ class Music
   music_end         label
 
   instrument_table  instruments(
+                      track_a_part1_6,
+                      track_b_part1_6,
+                      track_c_part1_6,
                       env_vol_piano1,
                       env_vol_piano2,
                       env_vol_piano3,
@@ -80,13 +83,22 @@ class Music
                       env_vol_silent,
                       env_vol_silent_slow,
                       env_vol_silent_slow2,
+                      env_vol_silent_sl_saw,
                       instr1_loud,
                       instr1_normal,
                       instr1_quiet,
+                      instr3_loud,
+                      instr3_normal,
+                      instr3_quiet,
+                      instr1_quiet_vib,
+                      instr1_silencio,
                       instr2_loud,
                       instr2_normal,
-                      instr3_loud,
                       chord_note2,
+                      chord_note2_4_6,
+                      chord_note3,
+                      chord_note3_5,
+                      chord_note3_7,
                       chord_note7,
                       chord_note5,
                       chord_note12,
@@ -105,19 +117,17 @@ class Music
   # end
 
 # https://www.youtube.com/watch?v=SO7iYa94N-M Debussy: Mouvement (L.110/3)
-  music_track :track_a do
-    tempo 128
-    n0
-    i :instr1_quiet
-    rpt(32) { p 32, 32, 32 }
-
-    l :mloop
+  music_track :track_a_part1_6 do
+    m1; n0; mt 0; mn 0; ce 0; i :instr1_quiet
     # part 1
-    rpt(4) do
+    rpt(2) do
+      i :instr3_quiet;
       rpt(7) { d  3, 32; e  3, 32; f  3, 32 }
+      i :instr1_quiet;
       d!  3, 32; f!  3, 32; a  4, 32
     end
     # part 1->2
+    i :instr1_quiet;
     rpt(2) do
       a  4, 32; f  3, 32; g  3, 32; a  4, 32; g  3, 32; f  3, 32;
       a  4, 32; f  3, 32; g  3, 32; b  4, 32; g  3, 32; f  3, 32;
@@ -129,31 +139,35 @@ class Music
       g  3, 32; d! 3, 32; f! 3, 32; g  3, 32; f! 3, 32; d! 3, 32;
     end
     # part 3
-    rpt(4) do
+    rpt(2) do
+      i :instr3_quiet;
       rpt(7) { c  3, 32; d  3, 32; d! 3, 32; }
+      i :instr1_quiet;
       c! 3, 32; e  3, 32; g  3, 32
     end
     # part 4
-    rpt(8) do
+    i :instr1_quiet;
+    rpt(4) do
       g  3, 32; d! 3, 32; f  3, 32; g  3, 32; f  3, 32; d! 3, 32;
       g  3, 32; d! 3, 32; f  3, 32; a  4, 32; f  3, 32; d! 3, 32;
     end
-    rpt(8) do
+    rpt(4) do
       g  3, 32; d! 3, 32; f  3, 32; a  4, 32; f  3, 32; d! 3, 32;
     end
     # part 5
     i :instr1_loud
     g  3
+    p 8, 16
     # i :instr1_quiet
     rpt(2) do
       p 8, 16;
       m2; ve 0; n 31
       mt :mask_thrr1; mn :mask_thrr2; ne :noise_env1
-      rpt(5) { d  3, 32; e 3, 32; f  3, 32; }
+      rpt(5) { d  3, 32; e  3, 32; f  3, 32; }
       d! 3, 32; f! 3, 32; a  4, 32;
-      rpt(7) { d  3, 32; e 3, 32; f  3, 32; }
+      rpt(7) { d  3, 32; e  3, 32; f  3, 32; }
       d! 3, 32; f! 3, 32; a  4, 32;
-      rpt(16) { d  3, 32; e 3, 32; f  3, 32; }
+      rpt(16) { d  3, 32; e  3, 32; f  3, 32; }
       m1; mt 0; mn 0;
       f  3
     end
@@ -161,30 +175,156 @@ class Music
     i :instr1_loud;
     c 3, 8, 16
     m2; ve 0; mn :mask_thrr2;
-    rpt(14) { d  3, 32; e 3, 32; f  3, 32; }
-    m1; mt 0; 
+    rpt(14) { d  3, 32; e  3, 32; f  3, 32; }
+    m1; mn 0; ne 0
+  end
+
+  music_track :track_a do
+    tempo 128
+    n0
+    i :instr1_quiet
+    # rpt(32) { p 32, 32, 32 }
+
+    # part 1-6
+    sub :track_a_part1_6
+
     # part 7
+    p 16, 64
     i :instr1_loud;
     c 3, 8, 16
     m2; ve 0; mn :mask_thrr2
-    rpt(14) { d  3, 32; e 3, 32; f  3, 32; }
-    m1; mt 0; 
-    # puts "counter1: #{counter}"
+    rpt(6) { d  3, 32; e  3, 32; f  3, 32; }
+    p 32
+    # part 8
+    mn 0;
+    p 16
+    # tempo 128+32
+    rpt(5) { d  3, 32; e  3, 32; f  3, 32; }
+    v 9
+    rpt(2) { g  3, 32; a 4, 32; b  4, 32; }
+    v 8
+    d  3, 32; e  3, 32; f  3, 32; g  3, 16, 32
+    ve :env_vol_silent_slow2
+    tempo 128
+    m1; rpt(2) { c 3, 16, 32 }
+    m2; ve 0; rpt(5) { d  3, 32; e  3, 32; f  3, 32; }
+    # part 9
+    m1; i :instr1_loud;
+    f  3, 16; b  4, 16; e  4, 16, 32; a  5, 16; d  5, 16, 32; g  5, 16, 32;
+    c  6, 16; i :instr1_normal; g  5, 32; c  5, 16;
+    rpt(9) { c  6, 32; g  5, 32; c  5, 32; }
+    i :instr1_quiet;
+    rpt(2) { g  5, 32; d  5, 32; g  4, 32; }
+    rpt(2) { c  5, 32; g  4, 32; c  4, 32; }
+    rpt(2) { g  4, 32; d  4, 32; g  3, 32; }
+    ve 0; m2
+    rpt(10) { c  5, 32; g  4, 32; c  4, 32; }
+    rpt(2) { g  4, 32; d  4, 32; g  3, 32; }
+    rpt(2) { c  4, 32; g  3, 32; c  3, 32; }
+    rpt(2) { g  4, 32; d  4, 32; g  3, 32; }
+    rpt(2) { c  5, 32; g  4, 32; c  4, 32; }
+    rpt(2) { g  4, 32; d  4, 32; g  3, 32; }
+    rpt(2) { c  4, 32; g  3, 32; c  3, 32; }
+    rpt(2) { g  3, 32; d  3, 32; g  2, 32; }
+    # part 10
+    ve :env_vol_silent_sl_saw
+    rpt(16) { g  3, 32; d  3, 32; g  2, 32; }
+    ve 0; v 7
+    # part 11
+    g  3, 32; d  3, 32; g  2, 32;
+    m1
+    a  4, 32; e  3, 32; a  3, 32; 
+    rpt(4) { c  4, 32; g  3, 32; c  3, 32; }
+    rpt(2) { d  4, 32; a  4, 32; d  3, 32; }
+    f  4, 32; c  4, 32; f  3, 32; g  4, 32; d  4, 32; p 32
+    # part 12
+    rpt(4) { e  4, 32; b  4, 32; e  3, 32; }
+    rpt(2) { d  4, 32; a  4, 32; d  3, 32; }
+    c  4, 32; g  3, 32; c  3, 32;
+    d  4, 32; a  4, 32; d  3, 32;
+    rpt(4) { b  4, 32; f! 3, 32; b  3, 32; }
+    a  4, 32; e  3, 32; a  3, 32;
+    b  4, 32; f! 3, 32, 64; b  3, 32, 64;
+    # part 13 (similar to part 10)
+    ve 0; m2
+    g  3, 32, 32; d  3, 32, 64; g  2, 32, 64
+    rpt(7) { g  3, 32; d  3, 32; g  2, 32; }
+    # part 14 (similar to part 11)
+    g  3, 32; d  3, 32; g  2, 32;
+    m1
+    a  4, 32; e  3, 32; a  3, 32; 
+    rpt(4) { c  4, 32; g  3, 32; c  3, 32; }
+    rpt(2) { d  4, 32; a  4, 32; d  3, 32; }
+    f  4, 32; c  4, 32; f  3, 32; g  4, 32; d  4, 32; g  3, 32
+    # part 15
+    m2; ve 0
+    rpt(18) { b  5, 32; f! 4, 32; b  4, 32; }
+    rpt(4) { c  5, 32; g  4, 32; c  4, 32; }
+    rpt(2) { b  5, 32; f! 4, 32; b  4, 32; }
+    rpt(2) { c  5, 32; g  4, 32; c  4, 32; }
+    rpt(2) { f  4, 32; c  4, 32; f  3, 32; }
+    rpt(2) { f! 4, 32; b  4, 32; f! 3, 32; }
+    rpt(2) { a! 4, 32; f  3, 32; a! 3, 32; }
+    rpt(2) { b  4, 32; f! 3, 32; b  3, 32; }
+    rpt(2) { e  3, 32; b  3, 32; e  2, 32; }
+    # part 16
+    # tempo 128+32
+    rpt(6) { f  3, 32; c 3, 32; f! 2, 32; }
+    tempo 128+32
+    rpt(4) { f! 3, 32; c 3, 32; f! 2, 32; }
+    # part 17
+    tempo 128
+    ve :env_vol_silent_sl_saw
+    rpt(8) { f! 3, 32, 64; f! 2, 32, 64; }
+    rpt(4) { f! 4, 32, 64; f! 3, 32, 64; }
+    m1
+    i :instr1_quiet
+    rpt(16) { f! 4, 16, 32; }
+
+    sub :track_a_part1_6
+
+    # part 18
+    i :instr1_loud;
+    c 3, 8; #16, 32;
+    i :instr1_quiet;
+    rpt(2) { d  3, 32; e  3, 32; f! 3, 32; }
+    e  3, 32; f! 3, 32; g! 3, 32; 
+    f! 3, 32; g! 3, 32; a! 4, 32;
+    g! 3, 32; a! 4, 32; c  4, 32;
+    a! 4, 32; c  4, 32; d  4, 32;
+    c  4, 32; d  4, 32; e  4, 32;
+    d  4, 32; e  4, 32; f! 4, 32;
+    e  4, 32; f! 4, 32; g! 4, 32;
+    f! 4, 32; g! 4, 32; a! 5, 32;
+    g! 4, 32; a! 5, 32; c  5, 32;
+    a! 5, 32; c  5, 32; d  5, 32;
+    c  5, 32; d  5, 32; e  5, 32;
+    d  5, 32; e  5, 32; f! 5, 32;
+    e  5, 32; f! 5, 32; g! 5, 32;
+    puts "counter1: #{tick_counter}"
+    # part 19
+    m2; ve 0
+    rpt(24) { f! 5, 32; g! 5, 32; a! 6, 32; }
+    m1;
+    rpt(2) { g! 5, 32; a! 6, 32; c  6, 32; }
+    rpt(2) { a! 6, 32; c  6, 32; d  6, 32; }
+    puts "counter1: #{tick_counter}"
+    # part 20
+    m1; i :instr1_normal;
+    ce :chord_note2_4_6; a! 6, 8, 16;
+    m2; ve 0; v 7; ce 0
+    rpt(38) { c  6, 32; d  6, 32; e  6, 32; }
+    ve :env_vol_silent_slow2
+    p 4, 32
+    ve 0; v 0
+    puts "counter1: #{tick_counter}"
     # lt :mloop
   end
 
-  music_track :track_b do # blue
-    tempo 128
-    n0
-    w 2
-    i :instr1_quiet
-    rpt(8) do
-      i :instr1_normal; c  3, 32, 32, 32
-      i :instr1_quiet; rpt(3) { c  3, 32, 32, 32 }
-    end
-    l :mloop
+  music_track :track_b_part1_6 do # blue
+    m1; n0; mt 0; mn 0; ce 0; i :instr1_quiet
     # part 1
-    rpt(2) do
+    rpt(1) do
       p  32, 32, 32
       rpt(15) { c  3, 32, 32, 32 }
     end
@@ -203,9 +343,9 @@ class Music
     i :instr1_normal; g  2, 32, 32, 32; i :instr1_quiet; c  4, 32, 32, 32;
     i :instr1_quiet;
     # part 3
-    rpt(2) { rpt(15) { a! 3, 32, 32, 32; }; p 32, 32, 32; }
+    rpt(1) { rpt(15) { a! 3, 32, 32, 32; }; p 32, 32, 32; }
     # part 4
-    rpt(6) do
+    rpt(3) do
       i :instr1_normal; a! 3, 32, 32, 32; i :instr1_quiet; c  4, 32, 32, 32;
       i :instr1_normal; a  3, 32, 32, 32; i :instr1_quiet; c  4, 32, 32, 32;
       i :instr1_normal; a! 3, 32, 32, 32; i :instr1_quiet; c  4, 32, 32, 32;
@@ -213,7 +353,8 @@ class Music
     end
     # part 5
     i :instr2_loud
-    np 1; c  0; np 16; c 1; vs 5; va 0.2
+    np 1; c  0; np 16; c 1; vs 4; va 0.3
+    p 8, 16
     rpt(2) do
       p 1,2,16,32, -32; np 0; vo; mn 0
       ce 0; i :instr1_normal
@@ -229,28 +370,118 @@ class Music
       i :instr2_normal; np 1; c  1; np 4; mn :mask_thrr3; c  0
     end
     # part 6
-    vo; np 1; ce 0; n0; mn 0; i :instr1_loud
+    vo; np 1; ce 0; n0; mn 0; i :instr3_loud
     rpt(2) do
       a! 1, 8, 16; a! 2, 4, 32; g  1, 8, 16; g  0, 16, 32; 
     end
+  end
+
+  music_track :track_b do # blue
+    tempo 128
+    n0
+    w 2
+    i :instr1_quiet
+    # rpt(8) do
+    #   i :instr1_normal; c  3, 32, 32, 32
+    #   i :instr1_quiet; rpt(3) { c  3, 32, 32, 32 }
+    # end
+
+    # part 1-6
+    sub :track_b_part1_6
+
     # part 7
-    f 0, 16, 32; g  0, 16, 32; g  0, 4, 32; f 0, 8, 16; g  0, 16; g 0, 32
-    # puts "counter2: #{counter}"
+    p 16, 64
+    i :instr1_loud;
+    f  0, 16, 32; g  0, 16, 32; g  0,  4, 32; f  0,  8, 16;
+    i :instr1_quiet; g  0, 16; g  0, 16
+    # part 8
+    p 16
+    # tempo 128+32
+    i :instr3_loud; d  2,  16, 32; g  2, 16, 32; f  2,  4,  8;
+    i :instr3_normal; b  3, 16, 32; i :instr3_loud; g  2, 16, 32; g  0, 16, 32
+    tempo 128
+    d  2, 16, 32; g  2, 16, 32; f  2, 4, 8, 16, 32
+    # part 9
+    i :instr1_loud;
+    g  3, 16, 32; c  4, 16; f  4, 32; f  4, 16; b  5, 16; e  5, 16, 64; a  6, 16, 64;
+    # i :instr2_loud;
+    c  0, 8, 32;
+    ce :chord_note12; g  2, 16, 32; g  2, 16; f  2, 16; e  2, 16; d  2, 16, 32; c  2,  16, 32; c  2, 4, 8
+    i :instr2_normal;
+    ce 0; d  0, 8, 16; e  0, 8, 16; f  0, 8, 16;
+    i :instr1_loud;
+    e  0, 16, 32;
+    ce :chord_note12; g  2, 16, 32; g  2, 16; f  2, 16; e  2, 16; d  2, 16, 32; c  2,  16, 32; c  2, 4, 8
+    i :instr1_loud;
+    ce 0; f  0, 8, 16; g  0, 8, 16; rpt(2) { f  0, 8, 16; e  0, 8, 16; }; f  0, 8, 16;
+    # part 10
+    i :instr2_normal; f! 0, 16, 32;
+    i :instr1_quiet; e  2, 1, 4, 8, 32
+    # part 11
+    e  2, 16, 32; f! 2, 16, 32; rpt(4) { a  3, 16, 32; }
+    rpt(2) { b  3, 16, 32; }; d  3, 16, 32; e  3, 16, 32;
+    # part 12
+    rpt(4) { c! 3, 16, 32; }
+    b  3, 16, 32; b  3, 16, 32; a  3, 16, 32; b  3, 16, 32;
+    rpt(4) { g! 2, 16, 32; }; f! 2, 16, 32; g! 2, 8;
+    # part 13 (similar to part 10)
+    i :instr2_normal; f! 0, 2, 4, 16;
+    i :instr1_quiet;
+    # part 14 (similar to part 11)
+    e  2, 16, 32; f! 2, 16, 32; rpt(4) { a  3, 16, 32; }
+    rpt(2) { b  3, 16, 32; }; d  3, 16, 32; e  3, 16, 32;
+    # part 15
+    rpt(7) { g! 3, 16, 32 }
+    f! 3, 16, 32; d! 3, 16, 32; g! 3, 16, 32; g! 3, 8, 16; d! 3, 16, 32; f! 3, 16, 32;
+    rpt(9) { g! 3, 16, 32; }
+    f! 3, 16, 32; d! 3, 16, 32; d! 3, 16, 32; d  3, 16, 32; c  3, 16, 32; a  3, 16, 32; a  3, 16, 32; 
+    g  2, 16, 32; f  2, 16, 32; d  2, 16, 32; d  2, 16, 32; c! 2, 16, 32; b  2, 16, 32
+    # part 16
+    rpt(6) { g! 1, 16, 32; }
+    tempo 128+32
+    rpt(4) { g! 1, 16, 32; }
+    # part 17
+    tempo 128
+    i :instr2_normal
+    f! 0, 8; ve :env_vol_silent_slow2; p 1;
+    i :instr1_quiet
+    mt :mask_thrr1
+    rpt(16) { p 32; f! 3, 32; f! 3, 32; }
+    mt 0
+
+    sub :track_b_part1_6
+
+    # part 18
+    i :instr2_normal
+    f! 0, 8, 2, 8, 32
+    i :instr1_loud
+    # ce :chord_note12; 
+    e  0, 4, 8; d  0, 4, 8;
+    puts "counter2: #{tick_counter}"
+    # part 19
+    i :instr1_normal; c! 0, 2, 4
+    i :instr1_quiet;
+    # ce 0;
+    e  2, 16, 32; f! 2, 16, 32; a! 3, 4, 8; d  3, 8, 16; f! 3, 16, 32; g! 3, 16, 32;
+    e  3, 2, 4, 8, 16;
+    puts "counter2: #{tick_counter}"
+    # part 20
+    c! 0,  8, 16;
+    vs 45; i :instr1_quiet_vib
+    e  2, 16, 32; f! 2, 16, 32; a! 3, 4, 8; d  3, 8, 16;
+    f! 3, 16, 32; g! 3, 16, 32; a! 4, 16, 32; c  4, 16, 32;
+    e  4,  4,  8; g! 4,  8, 16; c  5, 16, 32; d  5, 16, 32;
+    a! 5,  2, 16; a! 4,  4,  8; a! 3,  4,  8; a! 2,  4,  8
+    c  0, 8, 16, 16, 32;
+    ve 0; v 0
+    puts "counter2: #{tick_counter}"
     # lt :mloop
   end
 
-  music_track :track_c do # pink
-    tempo 128
-    n0
-    i :instr1_quiet
-    rpt(8) do
-      i :instr1_normal; g  3, 32, 32, 32
-      i :instr1_quiet; rpt(3) { g  3, 32, 32, 32 }
-    end
-    w 1
-    l :mloop
+  music_track :track_c_part1_6 do # pink
+    m1; n0; mt 0; mn 0; ce 0; i :instr1_quiet
     # part 1
-    rpt(32) { g  3, 32, 32, 32 }
+    rpt(16) { g  3, 32, 32, 32 }
     # part 1->2
     rpt(2) {  rpt(3) { d  3, 32, 32, 32 }; e  3, 32, 32, 32 }
     d  3, 32, 32, 32; d  3, 32, 32, 32
@@ -258,20 +489,22 @@ class Music
     # part 2
     rpt(16) { c  3, 32, 32, 32 }
     # part 3
-    rpt(2) { rpt(10) { f  3, 32, 32, 32 }; p 32, 32, 32; rpt(5) { f  3, 32, 32, 32 } }
+    rpt(1) { rpt(10) { f  3, 32, 32, 32 }; p 32, 32, 32; rpt(5) { f  3, 32, 32, 32 } }
     # part 4
-    rpt(8) { rpt(3) { c  3, 32, 32, 32 }; d  3, 32, 32, 32 }
+    rpt(4) { rpt(3) { c  3, 32, 32, 32 }; d  3, 32, 32, 32 }
     i :instr1_normal
-    rpt(8) { c  3, 32, 32, 32 ; d  3, 32, 32, 32 }
+    rpt(4) { c  3, 32, 32, 32 ; d  3, 32, 32, 32 }
     # part 5
-    i :instr1_loud
+    i :instr2_normal
     c  3
+    p 8, 16
     rpt(2) do
       ce :chord_note7; p 32, 32, 32;
+      m2; 
       rpt(8) do
-        i :instr1_normal; c  4, 32, 32, 32; i :instr1_quiet; c  3, 32, 32, 32;
+        c  4, 32, 32, 32; c  3, 32, 32, 32;
       end
-      i :instr1_quiet;
+      m1; i :instr1_quiet;
       ce :chord_note12; g  4, 32, 32, 32; g  4, 32, 32; f  4, 32, 32; e  4, 32, 32; 
       i :instr1_normal;
       ce 0;             d  5, 32, 32, 32;
@@ -281,57 +514,159 @@ class Music
       i :instr1_quiet;
       ce :chord_note12; g  1, 32, 32, 32; g  1, 32, 32; f  1, 32, 32; e  1, 32, 32; i :instr1_normal; d  1, 32, 32, 32;
       c  1, 32, 32, 32; c  1, 32, 32, 32, 32, 32, 32;
-      i :instr1_normal;
+      i :instr2_normal;
       ce :chord_note7;  c  3
       ce 0
     end
     # part 6
-    i :instr1_loud;
+    i :instr3_loud;
     rpt(2) do
       a! 2, 8, 16; a! 3, 4, 32; g  2, 8, 16; g  1, 16, 32; 
     end
+  end
+
+  music_track :track_c do # pink
+    tempo 128
+    n0
+    i :instr1_quiet
+    # rpt(8) do
+    #   i :instr1_normal; g  3, 32, 32, 32
+    #   i :instr1_quiet; rpt(3) { g  3, 32, 32, 32 }
+    # end
+    w 1
+
+    # part 1-6
+    sub :track_c_part1_6
+
     # part 7
-    f 1, 16, 32; g  1, 16, 32; g  1, 4, 32; f 1, 8, 16; g  1, 16, 32; g 1
-    # puts "counter3: #{counter}"
+    p 16, 64
+    i :instr1_loud;
+    f  1, 16, 32; g  1, 16, 32; g  1,  4, 32; f  1,  8, 16;
+    i :instr1_quiet; g  1, 16, 32; g  1, 32
+    # part 8
+    p 16
+    # tempo 128+32
+    i :instr3_quiet; c  3, 16, 32;
+    i :instr3_loud;  b  3, 16, 32; a  3,  4, 32; c  3, 16, 32; d  3, 16, 32; b  3, 8; g  1, 16
+    tempo 128
+    p 16, 32
+    b  3, 16, 32; a  3, 4, 8; c  3, 16, 32
+    # part 9
+    i :instr1_loud;
+    p 32; a  4, 16; d  4, 16, 32; g  4, 16, 32; c  5, 16; f  5, 32, -64; f  5, 16; b  6, 16, -64;
+    c  1, 16, 32, 64; d  5, 16, -64;
+    i :instr2_loud; d  3, 16, 32; d  3, 16; c  3, 16; b  3, 16;
+    i :instr1_loud; a  3, 16, 32; g  2,  16, 32; g  2, 4, 8
+    i :instr2_normal;
+    d  1, 8, 16; e  1, 8, 16; f  1, 8, 16;
+    i :instr1_loud;
+    e  1, 16, 32;
+    d  3, 16, 32; d  3, 16; c  3, 16; b  3, 16;
+    a  3, 16, 32; g  2,  16, 32; g  2, 4, 8
+    i :instr1_loud;
+    f  1, 8, 16; g  1, 8, 16; rpt(2) { f  1, 8, 16; e  1, 8, 16; }; f  1, 8, 16;
+    # part 10
+    f! 1, 8; i :instr1_normal; a! 3, 32; c! 3, 32; i :instr1_quiet; a! 3, 1, 4, 16;
+    # part 11
+    p  32; a! 3, 32; c! 3, 16; c  3, 32; d! 3, 32;
+    rpt(4) { p 32; d! 3, 32; f! 3, 32; }
+    rpt(2) { p 32; f  3, 32; g! 3, 32; };
+    p 32; g! 3, 32; b  4, 32;
+    p 32; a! 4, 32; c! 4, 32;
+    # part 12
+    rpt(4) { p 32; g  3, 32; a! 4, 32; }
+    rpt(2) { p 32; f  3, 32; g! 3, 32; }
+    p 32; d! 3, 32; f! 3, 32;
+    p 32; f  3, 32; g! 3, 32;
+    p 32; rpt(2) { d  3, 32; f  3, 16; d  3, 16, 32; }; c  3, 32; d! 3, 16; d  3, 32; f  3, 16;
+    # part 13 (similar to part 10)
+    i :instr2_normal; f! 1, 8, 32
+    i :instr1_normal; e  2, 32; i :instr1_loud; a! 3, 32; c! 3, 32; a! 3, 2, 16;
+    i :instr1_quiet;
+    # part 14 (similar to part 11)
+    p  32; a! 3, 32; c! 3, 16; c  3, 32; d! 3, 32;
+    rpt(4) { p 32; d! 3, 32; f! 3, 32; }
+    rpt(2) { p 32; f  3, 32; g! 3, 32; };
+    p 32; g! 3, 32; b  4, 32;
+    p 32; a! 4, 32; c! 4, 32;
+    # part 15
+    rpt(7) { p 32; c! 4, 32; e 4, 32; }
+    p 32, 64; e  3, 32, 64; p 16, 32; 
+    rpt(2) { p 32; c! 4, 32; e  4, 32; }
+    c! 3, 8, 16, 32;
+    rpt(5) { c! 4, 32; e  4, 16; }
+    rpt(4) { a! 4, 32; f  4, 16; }
+    c! 4, 32; e  4, 32;
+    p 16; e  3, 16; rpt(2) { g  3, 32; c! 4, 16; }
+    g  3, 32; a! 4, 32; 
+    p  32, 64; a! 3, 32, 64;
+    p  32; rpt(2) { c! 3, 32; g  3, 16; }
+    c  3, 32; d! 3, 32;
+    p  32; d! 2, 16, 32; rpt(2) { f! 2, 32; c  3, 16; }
+    f! 2, 32; a  3, 16, 32; a  2, 32; 
+    # part 16
+    m2; ve 0
+    rpt(6) { p 32; d! 2, 32; a! 3, 32; }
+    tempo 128+32
+    rpt(4) { p 32; d! 2, 32; a! 3, 32; }
+    # part 17
+    tempo 128
+    m1; n1; t0; n 31; ne :noise_env1
+    i :instr2_normal
+    f! 1, 1, 8; ve :env_vol_silent_slow2; p 1;
+    n0; t1; v 0; ve 0; ne 0
+    p 2
+
+    sub :track_c_part1_6
+
+    # part 18
+    i :instr2_normal
+    f! 1, 8
+    i :instr1_quiet
+    rpt(2) { c  3, 16, 32; }; d  3, 16, 32; e  3, 16, 32;
+    f! 3, 16, 32; g! 3, 16, 32; a! 4, 16, 32; c  4, 16, 32; d  4, 16, 32; e  4, 16, 32;
+    f! 4, 16, 32; g! 4, 16, 32; a! 5, 16, 32; c  5, 16, 32; d  5, 16, 32;
+    puts "counter3: #{tick_counter}"
+    # part 19
+    rpt(24) { e  5, 16, 32; }
+    rpt(2) { f! 5, 16, 32; } 
+    rpt(2) { g! 5, 16, 32; }
+    puts "counter3: #{tick_counter}"
+    # part 20
+    i :instr1_normal
+    c! 1,  8, 16;
+    i :instr1_silencio
+    rpt(38) { a! 6, 16, 32; }
+    ve :env_vol_silent_slow2
+    p 4, 32
+    ve 0; v 0
+    puts "counter3: #{tick_counter}"
     # lt :mloop
   end
 
-  # volenv_clap1        music_envelope_data :all, [2, 0.999], [2, -0.999], [4, 0], [1, 0.499], [1, -0.5], [15-10, 0]
-  # volenv_down1        music_envelope_data :all, [50, -1]
-  # volenv_bass1        music_envelope_data :last, [5, 1.0], [100, -0.5], [255, -0.5]
-  # volenv_chord1       music_envelope_data :last, [50, 0.6], [50, -0.5], [50, 0]
-  # noienv_wave         music_envelope_data :all, [100, -1], [100, 1]
-  # chord_data_major1   music_chord_data :all, [2, 0], [1, 4], [1, 7]
-  # chord_data_minor1   music_chord_data :all, [2, 0], [1, 3], [1, 7]
-  # chord_data_minor_d1 music_chord_data :all, [2, 0], [1, 3], [1, 6]
-  # chord_data_7        music_chord_data :all, [1, 0], [1, 4], [1, 7], [1, 10]
-  # chord_data_7_min    music_chord_data :all, [1, 0], [1, 3], [1, 7], [1, 10]
-  # chord_data_7_maj    music_chord_data :all, [1, 0], [1, 4], [1, 7], [1, 11]
-  # mask_noise_cha      music_mask_data :last, 8, 0b01111110, 8, 0b11011011, 128, 0b01010101
-  # mask_data_swap      music_mask_data :all, 8, 0b0001111, 8, 0b11111100
-  # chord_octave1         music_chord_data -2, [2, 0], [2, 12], [1, 0], [1, 12]
-  # chord_note8           music_chord_data -2, [2, 0], [2, 8], [1, 0], [1, 8]
-  # mask_noise_thrrr      music_mask_data :all, 8, 0b01010101, 8, 0b01010101
-  # mask_noise_thr2       music_mask_data :all, 8, 0b01001000, 8, 0b00000000
-  # mask_noise_hihat      music_mask_data :all, 8, 0b00000011, 8, 0b11001111, 8, 0b11110011, 8, 0b11111100, 8, 0b11111111
   noise_env1            music_envelope_data :all, [128, -1.0], [128, 1.0]
-  # env1_down             music_envelope_data :last, [2, 0], [7, -1.0], [255, 0]
-  # env1_slowdown         music_envelope_data :last, [100, -1.0], [255, 0]
+
   chord_note2           music_chord_data :all, [1, 0], [1, 2]
+  chord_note2_4_6       music_chord_data -3, [4, 0], [4, 2], [4, 4], [4, 6]
+  chord_note3           music_chord_data :all, [1, 0], [1, 3]
+  chord_note3_5         music_chord_data :all, [1, 0], [1, 3], [1, 5]
+  chord_note3_7         music_chord_data :all, [1, 0], [1, 3], [1, 7]
   chord_note5           music_chord_data :all, [1, 0], [1, 5]
   chord_note7           music_chord_data :all, [1, 0], [1, 7]
   chord_note12          music_chord_data :all, [1, 0], [1, 12]
-  env_vol_piano1        music_envelope_data -2, [6, -0.2], [10, -0.3], [6, 0.2], [6, -0.2]
-  env_vol_piano2        music_envelope_data -2, [3, 0.5], [12, -0.6], [6, 0.2], [6, -0.2]
-  env_vol_piano3        music_envelope_data :last, [4, 1.0/3.0], [20, -0.1], [128, -0.5]
+
+  env_vol_piano1        music_envelope_data -2, [8, -0.2], [10, -0.3], [8, 0.2], [8, -0.2]
+  env_vol_piano2        music_envelope_data -2, [4, -0.1], [32, -0.3], [8, 0.1], [8, -0.1]
+  env_vol_piano3        music_envelope_data :last, [4, 1.0/3.0], [24, -0.1], [128, -0.5]
   env_vol_piano4        music_envelope_data :last, [24, -0.1], [64, 0], [255, -0.5]
   env_vol_silent        music_envelope_data :last, [10, -1.0]
   env_vol_silent_slow2  music_envelope_data :last, [255, -1.0]
+  env_vol_silent_sl_saw music_envelope_data -2, [64, -0.3], [48, 0.2], [48, -0.2]
   env_vol_silent_slow   music_envelope_data :last, [255, -0.1]
   mask_noise_1          music_mask_data :last, 8, 0b01111111, 8, 0b11111111
-  mask_thrr1            music_mask_data :last, 8, 0b01010101
+  mask_thrr1            music_mask_data :last, 8, 0b00110011
   mask_thrr2            music_mask_data :last, 8, 0b01110111
-  mask_thrr3            music_mask_data :all,  8, 0b00000000, 8, 0b11111111
+  mask_thrr3            music_mask_data :all,  8, 0b11111111, 8, 0b00000000
   mask_envelope1        music_mask_data :last, 32, 0b11111111, 255, 0
 
   music_track :instr1_loud do
@@ -346,6 +681,14 @@ class Music
     v 11; ve :env_vol_piano1
   end
 
+  music_track :instr1_quiet_vib do
+    sub :instr1_quiet; vo; w 16; vg 0; va 0.3
+  end
+
+  music_track :instr1_silencio do
+    v 9;  ve :env_vol_piano1
+  end
+
   music_track :instr2_loud do
     v 12; ve :env_vol_piano3
   end
@@ -355,7 +698,15 @@ class Music
   end
 
   music_track :instr3_loud do
-    envd 16; envs 10; me :mask_envelope1; w 32; me 0; v 15; ve :env_vol_piano4
+    v 15; ve :env_vol_piano2
+  end
+
+  music_track :instr3_normal do
+    v 13; ve :env_vol_piano2
+  end
+
+  music_track :instr3_quiet do
+    v 11; ve :env_vol_piano2
   end
 
   export music_data_len

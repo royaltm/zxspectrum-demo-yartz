@@ -13,7 +13,7 @@ require 'utils/shuffle'
 require 'utils/sincos'
 # require 'gdc/bfont'
 require 'utils/bigfont'
-require_relative 'music3'
+require_relative 'music5'
 
 class GDC
   include Z80
@@ -1548,7 +1548,7 @@ class GDC
   # 0xF8: backspace
   # 0x01..0x1f: wait this many frames * 8
   # 0xFF: clear ink screen
-  intro_text    data "\x08\x92\x82G.D.C.\x04\x82\xA0presents\x1F\xFF\xF3\x85\x4FV O R T E X\x97\x674k\x04"
+  intro_text    data "\x08\x92\x82G.D.C.\x04\x82\xA0presents\x1F\xFF\xF3\x85\x4FM O V.E N T\x97\x674k\x04"
                 db 0
   greetz_text   data "\xF1\x81\x18Respec' @:\x92\x30\x04Fred\x92\x40\x04Grych\x92\x50\x04KYA\x92\x60\x04M0nster\x92\x70\x04Tygrys\x92\x80\x04Voyager\x92\x90\x04Woola-T"
                 data "\x1F\xFF\xF4\x81\x10Made\x8A\x20for\x8F\x30SPECCY\x96\x4004.19"
