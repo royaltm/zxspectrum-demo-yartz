@@ -80,6 +80,7 @@ class Music
                       env_vol_piano2,
                       env_vol_piano3,
                       env_vol_piano4,
+                      env_vol_piano5,
                       env_vol_silent,
                       env_vol_silent_slow,
                       env_vol_silent_slow2,
@@ -90,6 +91,9 @@ class Music
                       instr3_loud,
                       instr3_normal,
                       instr3_quiet,
+                      instr4_loud,
+                      instr4_normal,
+                      instr4_quiet,
                       instr1_quiet_vib,
                       instr1_silencio,
                       instr2_loud,
@@ -212,7 +216,8 @@ class Music
     m1; i :instr1_loud;
     f  3, 16, 32; b  4, 16; e  4, 16, 32; a  5, 16; d  5, 16, 32; g  5, 16, 32;
     i :instr3_loud;
-    c  6, 16, 32; i :instr1_normal; g  5, 32; c  5, 16;
+    c  6, 16, 32; i :instr3_normal; g  5, 32; c  5, 16;
+    i :instr3_quiet;
     rpt(9) { c  6, 32; g  5, 32; c  5, 32; }
     i :instr1_quiet;
     rpt(2) { g  5, 32; d  5, 32; g  4, 32; }
@@ -397,9 +402,9 @@ class Music
     i :instr1_normal; g  0, 16; i :instr1_quiet; g  0, 16
     # part 8
     p 32
-    p 64; i :instr2_normal; d  2, 16, 32, 64; i :instr1_loud; g  2, 16, 32; i :instr3_loud; f  2,  4,  8, 32, 64;
-    i :instr3_normal; b  3, 16, 32; i :instr1_loud; g  2, 16, 32; g  0, 16, 32, 64
-    i :instr3_loud; d  2, 16, 32; g  2, 16, 32; i :instr1_loud; f  2, 4, 8, 16, 32
+    p 64; i :instr4_normal; d  2, 16, 32, 64; i :instr4_loud; g  2, 16, 32; i :instr4_quiet; f  2,  4,  8, 32, 64;
+    i :instr4_normal; b  3, 16, 32; i :instr4_loud; g  2, 16, 32; i :instr4_quiet; g  0, 16, 32, 64
+    i :instr4_normal; d  2, 16, 32; :instr3_normal; g  2, 16, 32; i :instr1_normal; f  2, 4, 8, 16, 32
     puts "counter2: #{tick_counter}"
     # part 9
     p 32
@@ -413,11 +418,11 @@ class Music
     i :instr1_loud;
     e  0, 16, 32;
     ce :chord_note12; g  2, 16, 32; g  2, 16; f  2, 16; e  2, 16; d  2, 16, 32; c  2,  16, 32; c  2, 4, 8
-    i :instr1_loud;
+    i :instr2_normal;
     ce 0; f  0, 8, 16; g  0, 8, 16; rpt(2) { f  0, 8, 16; e  0, 8, 16; }; f  0, 8, 16;
     puts "counter2: #{tick_counter}"
     # part 10
-    i :instr2_normal; f! 0, 16, 32, 32, 64;
+    i :instr1_loud; f! 0, 16, 32, 32, 64;
     i :instr3_quiet; e  2, 1, 4, 8, 32
     # part 11
     i :instr1_quiet;
@@ -546,11 +551,11 @@ class Music
     i :instr1_normal; g  1, 16, 32; i :instr1_quiet; g  1, 32
     # part 8
     p 32
-    i :instr3_quiet; c  3, 16, 32, 32;
-    i :instr3_loud;  b  3, 16, 32; a  3,  4, 32, 32, 64, 64; i :instr1_loud; c  3, 16, 32;
-    i :instr3_loud;  d  3, 16, 32; b  3, 8; i :instr1_loud; g  1, 16
+    i :instr4_quiet; c  3, 16, 32, 32;
+    i :instr4_loud;  b  3, 16, 32; i :instr4_normal; a  3,  4, 32, 32, 64, 64; i :instr4_loud; c  3, 16, 32;
+    i :instr4_normal;  d  3, 16, 32; b  3, 8; i :instr1_loud; g  1, 16
     p 16, 32
-    i :instr3_loud;  b  3, 16, 32; a  3, 4, 8; i :instr1_loud; c  3, 16, 32
+    i :instr4_normal;  b  3, 16, 32; i :instr1_loud; a  3, 4, 8; i :instr1_normal; c  3, 16, 32
     puts "counter3: #{tick_counter}"
     # part 9
     i :instr1_loud;
@@ -565,10 +570,11 @@ class Music
     e  1, 16, 32;
     d  3, 16, 32; d  3, 16; c  3, 16; b  3, 16;
     a  3, 16, 32; g  2,  16, 32; g  2, 4, 8
-    i :instr1_loud;
+    i :instr2_normal;
     f  1, 8, 16; g  1, 8, 16; rpt(2) { f  1, 8, 16; e  1, 8, 16; }; f  1, 8, 16;
     puts "counter3: #{tick_counter}"
     # part 10
+    i :instr1_loud;
     f! 1, 8, 32, 64; i :instr3_normal; a! 3, 32; c! 3, 32; i :instr3_quiet; a! 3, 1, 4, 16;
     # part 11
     i :instr1_quiet;
@@ -661,6 +667,7 @@ class Music
   env_vol_piano2        music_envelope_data -2, [4, -0.1], [32, -0.3], [8, 0.1], [8, -0.1]
   env_vol_piano3        music_envelope_data :last, [4, 1.0/3.0], [24, -0.1], [128, -0.5]
   env_vol_piano4        music_envelope_data :last, [24, -0.1], [64, 0], [255, -0.5]
+  env_vol_piano5        music_envelope_data :last, [4, 0.25], [16, -0.3], [128, -0.5]
   env_vol_silent        music_envelope_data :last, [10, -1.0]
   env_vol_silent_slow2  music_envelope_data :last, [255, -1.0]
   env_vol_silent_sl_saw music_envelope_data -2, [64, -0.3], [48, 0.2], [48, -0.2]
@@ -709,6 +716,18 @@ class Music
 
   music_track :instr3_quiet do
     v 11; ve :env_vol_piano2
+  end
+
+  music_track :instr4_loud do
+    v 12; ve :env_vol_piano5
+  end
+
+  music_track :instr4_normal do
+    v 10; ve :env_vol_piano5
+  end
+
+  music_track :instr4_quiet do
+    v 8; ve :env_vol_piano5
   end
 
   export music_data_len
