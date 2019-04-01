@@ -113,6 +113,7 @@ class Music
                       mask_thrr3,
                       mask_envelope1,
                       noise_env1,
+                      noise_env_down,
                     )
 
   # $random = Random.new 1
@@ -264,7 +265,6 @@ class Music
     rpt(2) { d  4, 32; a  4, 32; d  3, 32; }
     f  4, 32; c  4, 32; f  3, 32; g  4, 32; d  4, 32; g  3, 32
     # part 15
-    puts "counter1: #{tick_counter}"
     m2; ve 0; v 8
     rpt(10) { b  5, 32; f! 4, 32; b  4, 32, 128; }
     v 9
@@ -281,14 +281,17 @@ class Music
     rpt(6) { f  3, 32; c 3, 32, 128; f! 2, 32, 128; }
     rpt(4) { f! 3, 32, 128; c 3, 32, 128; f! 2, 32, 64; }
     # part 17
-    v 0
-    p 1
-    ve :env_vol_silent_slow_u
-    rpt(8) { f! 3, 32, 64; f! 2, 32, 64; }
-    rpt(4) { f! 4, 32, 64; f! 3, 32, 64; }
+    puts "counter1: #{tick_counter}"
+    rpt(1) { f! 3, 32, 128; c 3, 32, 64; f! 2, 32, 64; }
+    rpt(1) { f! 3, 32, 64; c 3, 32, 64; f! 2, 32, 64; }
+    rpt(1) { f! 3, 32, 64; c 3, 32, 64; f! 2, 32, 64, 128; }
+    rpt(1) { f! 3, 32, 64; c 3, 32, 64, 128; f! 2, 32, 64, 128; }
+    p 64;
+    puts "counter1: #{tick_counter}"
     m1
     i :instr1_quiet
     rpt(16) { f! 4, 16, 32; }
+    puts "counter1: #{tick_counter}"
 
     sub :track_a_part1_6
 
@@ -438,7 +441,6 @@ class Music
     e  2, 16, 32; f! 2, 16, 32; rpt(4) { a  3, 16, 32; }
     rpt(2) { b  3, 16, 32; }; d  3, 16, 32; e  3, 16, 32;
     # part 15
-    puts "counter2: #{tick_counter}"
     rpt(7) { g! 3, 16, 32, 128 }
     f! 3, 16, 32, 128; d! 3, 16, 32, 128; g! 3, 16, 32, 128; g! 3, 8, 16, 128; d! 3, 16, 32, 128; f! 3, 16, 32, 128;
     rpt(9) { g! 3, 16, 32, 128; }
@@ -449,12 +451,18 @@ class Music
     rpt(6) { g! 1, 16, 32, 64; }
     rpt(4) { g! 1, 16, 32, 32; }
     # part 17
-    i :instr1_normal
-    np 1; f! 0, 1, 8; np 128; m2; f! 5; ve :env_vol_silent_slow2; p 1; np 1; m1
+    puts "counter2: #{tick_counter}"
+    rpt(1) { g! 1, 16, 32, 128, 64, 64; }
+    rpt(1) { g! 1, 16, 32, 64, 64, 64; }
+    rpt(1) { g! 1, 16, 32, 64, 64, 64, 128; }
+    rpt(1) { g! 1, 16, 32, 64, 64, 64, 128, 128; }
+    p 64
+    puts "counter2: #{tick_counter}"
     i :instr1_quiet
     mt :mask_thrr1
     rpt(16) { p 32; f! 3, 32; f! 3, 32; }
     mt 0;
+    puts "counter2: #{tick_counter}"
 
     sub :track_b_part1_6
 
@@ -598,7 +606,6 @@ class Music
     p 32; g! 3, 32; b  4, 32;
     p 32; a! 4, 32; c! 4, 32;
     # part 15
-    puts "counter3: #{tick_counter}"
     rpt(7) { p 32, 128; c! 4, 32; e 4, 32; }
     p 32, 64, 128; e  3, 32, 64; p 16, 32, 128;
     rpt(2) { p 32, 128; c! 4, 32; e  4, 32; }
@@ -618,12 +625,18 @@ class Music
     rpt(6) { p 32; d! 2, 32, 128; a! 3, 32, 128; }
     rpt(4) { p 32, 128; d! 2, 32, 128; a! 3, 32, 64; }
     # part 17
-    m1
-    i :instr1_normal
-    np 1; f! 1, 1, 8; np 128; m2; f! 6; ve :env_vol_silent_slow2; p 1;
-    # f! 1, 8; p 1; ve :env_vol_silent_slow2; 
-    p 1, 2; np 1; i 0; f! 6; np 0; m1
-    v 0; ve 0;
+    puts "counter3: #{tick_counter}"
+    rpt(1) { p 32, 128; d! 2, 32, 64; a! 3, 32, 64; }
+    rpt(1) { p 32, 64; d! 2, 32, 64; a! 3, 32, 64; }
+    rpt(1) { p 32, 64; d! 2, 32, 64; a! 3, 32, 64, 128; }
+    rpt(1) { p 32, 64; d! 2, 32, 64, 128; a! 3, 32, 64, 128; }
+    p 64
+    puts "counter3: #{tick_counter}"
+    # i :instr4_normal
+    # f! 0
+    t0; n1; n 31; ne :noise_env_down; v 0; ve :env_vol_silent_slow_u
+    p 1, 2; t1; n0; ve 0; 
+    puts "counter3: #{tick_counter}"
 
     sub :track_c_part1_6
 
@@ -651,6 +664,7 @@ class Music
   end
 
   noise_env1            music_envelope_data :all, [128, -1.0], [128, 1.0]
+  noise_env_down        music_envelope_data -1, [255, -1.0], [255, 0]
 
   chord_note2           music_chord_data :all, [1, 0], [1, 2]
   chord_note2_4_6       music_chord_data -3, [4, 0], [4, 2], [4, 4], [4, 6]
@@ -669,7 +683,7 @@ class Music
   env_vol_silent        music_envelope_data :last, [10, -1.0]
   env_vol_silent_slow2  music_envelope_data :last, [255, -1.0]
   env_vol_silent_sl_saw music_envelope_data -2, [64, -0.3], [48, 0.2], [48, -0.2]
-  env_vol_silent_slow_u music_envelope_data -2, [255, 0.5], [48, -0.2], [48, 0.2]
+  env_vol_silent_slow_u music_envelope_data -2, [128, 1.0], [48, -0.2], [48, 0.2]
   env_vol_silent_wave   music_envelope_data :all, [255, 0.5], [255, -0.5]
   mask_noise_1          music_mask_data :last, 8, 0b01111111, 8, 0b11111111
   mask_thrr1            music_mask_data :last, 8, 0b00110011
