@@ -89,6 +89,18 @@ class GDC
     yx        byte
   end
 
+  class WaveControl < Label
+    last_note byte
+    direction byte
+    current   byte
+  end
+
+  class SpectrumControl < Label
+    margin1   byte
+    data      byte, 16
+    margin2   byte
+  end
+
   # all demo variables
   class DemoVars < Label
     pattern_lo    byte
@@ -121,6 +133,10 @@ class GDC
     anim_start    word            # next animation frames
     seed1         word            # 1st seed for rnd rotate control
     seed2         word            # 2nd seed for extra tasks' rnd
+    spectrum      SpectrumControl
+    # chan_a        WaveControl
+    # chan_b        WaveControl
+    # chan_c        WaveControl
   end
 
   ########
@@ -146,7 +162,8 @@ class GDC
   patt_shuffle  addr pattern_buf - 256    # pattern shuffle index
   mini_stk_end  addr patt_shuffle[0], 2   # stack for main program
   intr_stk_end  addr mini_stk_end[-80], 2 # stack for interrupt handler
-  
+  wave_control  addr 0, WaveControl
+
   ##########
   # Macros #
   ##########
@@ -349,14 +366,14 @@ class GDC
                   ld   hl, dvar.rotate_flags
                   ld   [hl], 0
 
-                  ld   a, 80
-                  call wait_for_next.set_delay
+                  # ld   a, 80
+                  # call wait_for_next.set_delay
 
-                  ld   hl, dvar.rotate_flags
-                  set  B_RND_PATTERN, [hl]
+                  # ld   hl, dvar.rotate_flags
+                  # set  B_RND_PATTERN, [hl]
 
-                  ld   hl, extra_hide
-                  call wait_for_next.set_extra
+                  # ld   hl, extra_hide
+                  # call wait_for_next.set_extra
   
                   halt
                   ld   a, 0b01010101
@@ -367,6 +384,17 @@ class GDC
 
                   # ld   hl, extra_show
                   # call wait_for_next.set_extra
+
+                  ld   hl, 0x0000
+                  ld   [dvar.pattx_control.value], hl
+                  ld   hl, 0x8080
+                  ld   [dvar.patty_control.value], hl
+                  ld   hl, dvar.scale_control
+                  ld   [hl], 0 # frms
+                  inc  hl
+                  ld   [hl], 0xB0 # tgt_incr
+                  ld   hl, extra_spectrum
+                  call wait_for_next.set_extra
 
                   ld   a, 0b00011111
                   ld   [dvar.fgcolor], a
@@ -1252,6 +1280,207 @@ class GDC
                   jp   extra_show.mix_fg_color
   end
 
+  # ns :extra_wave do
+  #                 ld   a, [music.music_control.counter]
+  #                 rrca
+  #                 jr   C, upper
+  #                 ld   de, pattern_buf | 0x00
+  #                 ld   hl, pattern_buf | 0x10
+  #                 ld   bc, 0x70
+  #                 ldir
+  #                 jp   no_upper
+  #   upper         ld   de, pattern_buf | 0xFF
+  #                 ld   hl, pattern_buf | 0xEF
+  #                 ld   bc, 0x70
+  #                 lddr
+  #   no_upper      ld   l, 0x70
+  #                 ld   bc, 32<<8|0b00001000
+  #   dloop         ld   a,  [hl]
+  #                 sub  c
+  #                 jr   NC, skip0
+  #                 xor  a
+  #   skip0         ld   [hl], a
+  #                 inc  l
+  #                 djnz dloop
+  #                 ld   hl, dvar.chan_a
+  #                 exx
+  #                 ld   de, music.music_control.chan_a.current_note
+  #                 # ld   bc, music.music_control.ay_registers.volume_a
+  #                 ld   bc, music.music_control.chan_a.volume_envelope.current_value
+  #                 ld   h, 0b01001001
+  #                 call mixvol
+  #                 ld   hl, dvar.chan_b
+  #                 exx
+  #                 ld   de, music.music_control.chan_b.current_note
+  #                 # ld   bc, music.music_control.ay_registers.volume_b
+  #                 ld   bc, music.music_control.chan_b.volume_envelope.current_value
+  #                 ld   h, 0b01010010
+  #                 call mixvol
+  #                 ld   hl, dvar.chan_c
+  #                 exx
+  #                 ld   de, music.music_control.chan_c.current_note
+  #                 # ld   bc, music.music_control.ay_registers.volume_c
+  #                 ld   bc, music.music_control.chan_c.volume_envelope.current_value
+  #                 ld   h, 0b01100100
+  #   mixvol        ld   a, [de]
+  #                 exx
+  #                 cp   [hl]    # last_note
+  #                 jr   NZ, set_direction
+  #                 inc  hl      # direction
+  #                 jr   same_note
+  #   set_direction ld   [hl], a # last_note
+  #                 sbc  a, a
+  #                 ora  1
+  #                 inc  hl      # direction
+  #                 ld   [hl], a # direction
+  #   same_note     ld   a, [hl] # direction
+  #                 inc  hl      # current
+  #                 add  [hl]    # current
+  #                 ld   [hl], a # current
+  #                 exx
+  #                 anda 0x0F
+  #                 add  0x70
+  #                 ld   l, a
+  #                 ld   a, [bc]
+  #                 srl  a
+  #                 # add  a, a
+  #                 # sbc  a, a
+  #                 anda h
+  #                 ld   h, pattern_buf >> 8
+  #                 ora  [hl]
+  #                 ld   [hl], a
+  #                 ex   af, af
+  #                 ld   a, l
+  #                 add  0x10
+  #                 ld   l, a
+  #                 ex   af, af
+  #                 ld   [hl], a
+  #                 ret
+  # end
+
+  ns :extra_spectrum do
+                  ld   hl, dvar.scale_control
+                  ld   [hl], 0 # frms
+                  # ld   a, [music.music_control.counter]
+                  # ora  a
+                  # jp   Z, signal_next
+                  ld   hl, pattern_buf
+                  ld   de, dvar.spectrum.data
+                  ld   a, 16
+
+    vloop         ex   af, af
+                  ld   a, [de]
+                  sub  16
+                  jr   NC, no_zero
+                  xor  a
+    no_zero       ld   [de], a
+                  add  16
+                  inc  de
+                  anda 0b11100000
+                  jr   Z, skip_line
+                  2.times { rrca }
+                  # ld   c, 7<<3#a # bg color 1-7
+                  ld   b, a # bg color 1-7 << 3
+                  anda 0b00011000
+                  ora  0x07
+                  ld   c, a
+                  ld   a, b
+                  3.times { rrca }
+                  ld   b, a # 1-7
+                  cpl
+                  add  0x11 # 9-F
+                  ora  l
+
+    hloop1        dec  c
+                  ld   [hl], c
+                  inc  l
+                  djnz hloop1
+
+    hloop2        ld   [hl], b
+                  inc  l
+                  cp   l
+                  jr   NZ, hloop2
+
+                  ld   b, 0x0F
+                  set  6, c       # bright
+    hloop3        inc  c
+                  ld   [hl], c
+                  inc  l
+                  ld   a, l
+                  anda b
+                  jr   NZ, hloop3
+
+    next_line     ex   af, af
+                  dec  a
+                  jr   NZ, vloop
+
+                  ld   hl, dvar.spectrum.data
+                  ld   de, music.music_control.chan_a.current_note
+                  # ld   bc, music.music_control.ay_registers.volume_a
+                  ld   bc, music.music_control.chan_a.volume_envelope.current_value
+                  call mixvol
+                  ld   hl, dvar.spectrum.data
+                  ld   de, music.music_control.chan_b.current_note
+                  # ld   bc, music.music_control.ay_registers.volume_b
+                  ld   bc, music.music_control.chan_b.volume_envelope.current_value
+                  call mixvol
+                  ld   hl, dvar.spectrum.data
+                  ld   de, music.music_control.chan_c.current_note
+                  # ld   bc, music.music_control.ay_registers.volume_c
+                  ld   bc, music.music_control.chan_c.volume_envelope.current_value
+    mixvol        ld   a, [de] # current_note
+                  # 1.times { rrca }
+                  # add  e
+                  # add  c
+                  anda 0x0F
+                  add  a, l
+                  ld   l, a
+                  ld   a, [bc] # volume
+                  ld   b, a
+                  srl  b
+                  cp   [hl]
+                  jr   C, skipmix1
+                  # ld   a, 0x7F
+                  # srl  a
+                  # add  [hl]
+                  # ld   c, a
+                  # sbc  a, a
+                  # ora  c
+                  ld   [hl], a
+    skipmix1      inc  l
+                  ld   a, b
+                  cp   [hl]
+                  jr   C, skipmix2
+                  # ld   a, 0x3F
+                  # srl  a
+                  # add  [hl]
+                  # ld   c, a
+                  # sbc  a, a
+                  # ora  c
+                  add  0x1F
+                  ld   [hl], a
+    skipmix2      dec  l
+                  dec  l
+                  ld   a, b
+                  cp   [hl]
+                  ret  C
+                  # ld   a, 0x3F
+                  # srl  a
+                  # add  [hl]
+                  # ld   c, a
+                  # sbc  a, a
+                  # ora  c
+                  add  0x1F
+                  ld   [hl], a
+                  ret
+
+    skip_line     ld   b, 16
+    skloop        ld   [hl], a
+                  inc  l
+                  djnz skloop
+                  jp   next_line
+  end
+
   # animate frames at dvar.pattern_bufh
   ns :animation do
                   ld   hl, [dvar.anim_frames]
@@ -1854,6 +2083,7 @@ display_labels gdc, %w[
 start +start end_of_code
 rotate_int +rotate_int
 control_value +control_value
+extra_spectrum
 pattern1
 pattern3
 pattern6
