@@ -89,11 +89,11 @@ class GDC
     yx        byte
   end
 
-  class WaveControl < Label
-    last_note byte
-    direction byte
-    current   byte
-  end
+  # class WaveControl < Label
+  #   last_note byte
+  #   direction byte
+  #   current   byte
+  # end
 
   class SpectrumControl < Label
     margin1   byte
@@ -1635,10 +1635,10 @@ class GDC
   ns :make_figurines do
                   clrmem pattern_ani1, 3*256, 0x02
                   clrmem pattern_ani4, 3*256, 0b01111110
-                  ld   c, 0b10000111 # counter | color mask
+                  ld   c, 0b10000111 # color mask
                   ld   hl, ludek1_data
                   ld   d, pattern_ani1 >> 8
-                  xor  a
+                  ld   ix, make_figurine_plane
                   # 1st create 3 times a step 1 figurine on all patterns
                   call make_figurines_step1
                   # 2nd step
@@ -1649,70 +1649,27 @@ class GDC
                   # ld   hl, ludek3_data
                   # ld   d, pattern_ani3 >> 8
                   call make_figurine_plane
-                  # 1st step color bit 0
-                  # ld   hl, ludek1a_data1
-                  ld   c, 0b11110111 # bit 0
-                  cpl    # a: 0xFF
+                  # colors
+                  # ld   hl, ludek1_color
                   # ld   d, pattern_ani4 >> 8
+                  ld   ix, make_figurine_color
+                  # 1st create 3 times a step 1 color figurine on all patterns
                   call make_figurines_step1
                   # 2nd step
-                  ld   hl, ludek2a_data1
+                  ld   hl, ludek2_color
                   ld   d, pattern_ani5 >> 8
-                  call make_figurine_plane
+                  call make_figurine_color
                   # 3rd step
-                  # ld   hl, ludek3a_data1
+                  # ld   hl, ludek3_color
                   # ld   d, pattern_ani6 >> 8
-                  call make_figurine_plane
-                  # 1st step color bit 1
-                  # ld   hl, ludek1a_data2
-                  ld   c, 0b11101111 # bit 1
-                  ld   d, pattern_ani4 >> 8
-                  call make_figurines_step1
-                  # 2nd step
-                  ld   hl, ludek2a_data2
-                  ld   d, pattern_ani5 >> 8
-                  call make_figurine_plane
-                  # 3rd step
-                  # ld   hl, ludek3a_data2
-                  # ld   d, pattern_ani6 >> 8
-                  call make_figurine_plane
-                  # 1st step color bit 2
-                  ld   hl, ludek1a_data4
-                  ld   c, 0b11011111 # bit 2
-                  ld   d, pattern_ani4 >> 8
-                  call make_figurines_step1
-                  ld   hl, ludek1b_data4
-                  ld   d, pattern_ani4 >> 8
-                  call make_figurines_step1
-                  # 2nd step
-                  ld   hl, ludek2a_data4
-                  ld   d, pattern_ani5 >> 8
-                  call make_figurine_plane
-                  # 3rd step
-                  # ld   hl, ludek3a_data4
-                  # ld   d, pattern_ani6 >> 8
-                  call make_figurine_plane
-                  # 1st step color bit 4 (brightness)
-                  # ld   hl, ludek1a_data8
-                  ld   c, 0b10111111 # bit 4
-                  ld   d, pattern_ani4 >> 8
-                  call make_figurines_step1
-                  # 2nd step
-                  ld   hl, ludek2a_data8
-                  ld   d, pattern_ani5 >> 8
-                  call make_figurine_plane
-                  # 3rd step
-                  # ld   hl, ludek3a_data8
-                  # ld   d, pattern_ani6 >> 8
-                  call make_figurine_plane
-                  ret
+                  jr   make_figurine_color
   end
 
   ns :make_figurines_step1 do
                   ld   b, 3
     figloop       push bc
                   push hl
-                  call make_figurine_plane
+                  call forward_ix
                   pop  hl
                   pop  bc
                   djnz figloop
@@ -1728,18 +1685,17 @@ class GDC
                   inc  hl
                   ld   b, [hl] # counter
                   inc  hl
-    mloop         push af
-                  push bc
-                  push de
-                  xor  [hl]
-                  inc  hl
-                  push hl
                   ex   de, hl
+    mloop         push bc
+                  push hl
+                  ld   a, [de]
+                  inc  de
+                  push de
                   scf
                   rla
                   ld   b, a
     bitloop       sbc  a
-                  ld   e, a                    # c: value to set
+                  ld   e, a                    # e: value to set
                   xor  [hl]                    # original ^ value
                   anda c                       # (original ^ value) & ~mask
                   xor  e                       # ((original ^ value) & ~mask) ^ value
@@ -1747,14 +1703,54 @@ class GDC
                   inc  l
                   rl   b
                   jr   NZ, bitloop
-                  pop  hl
                   pop  de
+                  pop  hl
                   pop  bc
-                  ld   a, e
+                  ld   a, l
                   add  0x10
-                  ld   e, a
-                  pop  af
+                  ld   l, a
                   djnz mloop
+                  ex   de, hl
+                  inc  d                       # next pattern
+                  ret
+  end
+
+  # d : patternXY >> 8
+  # hl: ludek data
+  ns :make_figurine_color do
+                  ld   e, [hl] # y0,x0
+                  inc  hl
+                  ld   b, [hl] # counter
+                  inc  hl
+                  ex   de, hl
+    mloop         push bc
+                  push hl
+                  ld   b, 4
+    vloop         ld   a, [de]
+                  rrca
+                  ld   c, a                    # e: value to set
+                  xor  [hl]                    # original ^ value
+                  anda 0b10000111              # (original ^ value) & ~mask
+                  xor  c                       # ((original ^ value) & ~mask) ^ value
+                  ld   [hl], a
+                  inc  l
+                  ld   a, [de]
+                  inc  de
+                  3.times { rlca }
+                  ld   c, a                    # e: value to set
+                  xor  [hl]                    # original ^ value
+                  anda 0b10000111              # (original ^ value) & ~mask
+                  xor  c                       # ((original ^ value) & ~mask) ^ value
+                  ld   [hl], a
+                  inc  l
+                  djnz vloop
+                  pop  hl
+                  pop  bc
+                  ld   a, l
+                  add  0x10
+                  ld   l, a
+                  djnz mloop
+                  ex   de, hl
                   inc  d                       # next pattern
                   ret
   end
@@ -1777,7 +1773,7 @@ class GDC
   # 0xF8: backspace
   # 0x01..0x1f: wait this many frames * 8
   # 0xFF: clear ink screen
-  intro_text    data "\x08\x92\x82G.D.C.\x04\x82\xA0presents\x1F\xFF\xF3\x85\x4FM O V.E N T\x97\x674k\x04"
+  intro_text    data "\x08\x92\x82G.D.C.\x04\x82\xA0presents\x1F\xFF\xF3\x85\x4FM O V.E N T\x04"
                 db 0
   greetz_text   data "\xF1\x81\x18Respec' @:\x92\x30\x04Fred\x92\x40\x04Grych\x92\x50\x04KYA\x92\x60\x04M0nster\x92\x70\x04Tygrys\x92\x80\x04Voyager\x92\x90\x04Woola-T"
                 data "\x1F\xFF\xF4\x81\x10Made\x8A\x20for\x8F\x30SPECCY\x96\x4004.19"
@@ -1896,7 +1892,6 @@ class GDC
                    0b00011000,
                    0b00011100
 
-  # same as ludek2a_data2
   ludek2_data   db (9<<4|4), 7,
                    0b01111110,
                    0b01110110,
@@ -1906,7 +1901,6 @@ class GDC
                    0b01101110,
                    0b01110111
 
-  # same as ludek3a_data2
   ludek3_data   db (9<<4|4), 7,
                    0b11111110,
                    0b11011011,
@@ -1916,123 +1910,40 @@ class GDC
                    0b11000111,
                    0b11100010
 
-  # 1 - clear color bit-0
-  # step 1
-  ludek1a_data1 db (6<<4|4), 6,
-                   0b00011000,
-                   0b00111100,
-                   0b01111110,
-                   0b01101110,
-                   0b01101110,
-                   0b01110110
-  # step 2
-  ludek2a_data1 db (9<<4|4), 3,
-                   0b01111110,
-                   0b01110110,
-                   0b01111010
-  # step 3
-  ludek3a_data1 db (9<<4|4), 3,
-                   0b11111110,
-                   0b11011011,
-                   0b10011001
+  ludek1_color  db (1<<4|4), 15,
+                   0xFF,0x44,0x4C,0xFF,
+                   0xF4,0x44,0x44,0xCF,
+                   0xFF,0x66,0x26,0xFF,
+                   0xFF,0x66,0x66,0xAF,
+                   0xFF,0xF6,0xE0,0xFF,
+                   0xFF,0xF3,0xBF,0xFF,
+                   0xFF,0xBB,0xBB,0xFF,
+                   0xFB,0xBB,0xBB,0xBF,
+                   0xFB,0x36,0xBB,0xBF,
+                   0xFB,0x36,0xBB,0xBF,
+                   0xFB,0xB3,0x6B,0xBF,
+                   0xFF,0x15,0x55,0xFF,
+                   0xFF,0xF1,0x5F,0xFF,
+                   0xFF,0xF1,0x5F,0xFF,
+                   0xFF,0xF9,0x99,0xFF
 
-  # 1 - clear color bit-1
-  # step 1
-  ludek1a_data2 db (3<<4|4), 13,
-                   0b00001000,
-                   0b00000000,
-                   0b00000000,
-                   0b00011000,
-                   0b00111100,
-                   0b01111110,
-                   0b01101110,
-                   0b01101110,
-                   0b01110110,
-                   0b00111100,
-                   0b00011000,
-                   0b00011000,
-                   0b00011100
-  # step 2
-  ludek2a_data2 ludek2_data[0]
-                # db (9<<4|4), 7,
-                #    0b01111110,
-                #    0b01110110,
-                #    0b01111010,
-                #    0b00111100,
-                #    0b01110110,
-                #    0b01101110,
-                #    0b01110111
-  # step 3
-  ludek3a_data2 ludek3_data[0]
-                # db (9<<4|4), 7,
-                #    0b11111110,
-                #    0b11011011,
-                #    0b10111101,
-                #    0b01111100,
-                #    0b11101111,
-                #    0b11000111,
-                #    0b11100010
+  ludek2_color  db (9<<4|4), 7,
+                   0xFB,0xBB,0x3B,0xBF,
+                   0xFB,0xBB,0x63,0xBF,
+                   0xFB,0xB3,0x36,0xBF,
+                   0xFF,0x15,0x55,0xFF,
+                   0xF1,0x55,0xF1,0x5F,
+                   0xF1,0x5F,0x15,0x5F,
+                   0xF9,0x99,0xF9,0x99
 
-  # 1 - clear color bit-2
-  # step 1
-  ludek1a_data4 db (1<<4|4), 2,
-                   0b00111100,
-                   0b01111110
-  ludek1b_data4 db (12<<4|4), 4,
-                   0b00111100,
-                   0b00011000,
-                   0b00011000,
-                   0b00011100
-  # step 2
-  ludek2a_data4 db (12<<4|4), 4,
-                   0b00111100,
-                   0b01110110,
-                   0b01101110,
-                   0b01110111
-  # step 3
-  ludek3a_data4 db (11<<4|4), 5,
-                   0b00100100,
-                   0b01111100,
-                   0b11101111,
-                   0b11000111,
-                   0b11100010
-
-  # 1 - clear color bright bit
-  # step 1
-  ludek1a_data8 db (1<<4|4), 15,
-                   0b00111100,
-                   0b01111110,
-                   0b00110100,
-                   0b00111110,
-                   0b00011100,
-                   0b00010000,
-                   0b00000000,
-                   0b00000000,
-                   0b00011000,
-                   0b00011000,
-                   0b00101100,
-                   0b00000000,
-                   0b00000000,
-                   0b00000000,
-                   0b00011100
-  # step 2
-  ludek2a_data8 db (9<<4|4), 7,
-                   0b00001000,
-                   0b00000100,
-                   0b00110000,
-                   0b00000000,
-                   0b00000000,
-                   0b00000000,
-                   0b01110111
-  # step 3
-  ludek3a_data8 db (9<<4|4), 7,
-                   0b00100100,
-                   0b01000010,
-                   0b10000001,
-                   0b00000000,
-                   0b00000001,
-                   0b00000001,
-                   0b11100010
+  ludek3_color  db (9<<4|4), 7,
+                   0xBB,0x3B,0xB6,0xBF,
+                   0xB3,0x6B,0x3F,0x6B,
+                   0x36,0x3B,0xB3,0xF6,
+                   0xF1,0x55,0x55,0xFF,
+                   0x15,0x5F,0x15,0x59,
+                   0x15,0xFF,0xF1,0x59,
+                   0x99,0x9F,0xFF,0x9F
 
   import        Music, :music, override: {'music.sincos': sincos}
 end
@@ -2097,6 +2008,7 @@ make_pattern6 +make_pattern6
 make_figurines +make_figurines
 make_figurines_step1 +make_figurines_step1
 make_figurine_plane +make_figurine_plane
+make_figurine_color +make_figurine_color
 pattern_ani1
 pattern_ani2
 pattern_ani3
