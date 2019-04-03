@@ -95,6 +95,13 @@ class GDC
   #   current   byte
   # end
 
+  class ScrollControl < Label
+    text_cursor word
+    chars_temp  byte, 16
+    bits        byte
+    char_data   byte, 8
+  end
+
   class SpectrumControl < Label
     margin1   byte
     data      byte, 16
@@ -133,6 +140,7 @@ class GDC
     anim_start    word            # next animation frames
     seed1         word            # 1st seed for rnd rotate control
     seed2         word            # 2nd seed for extra tasks' rnd
+    scroll_ctrl   ScrollControl
     spectrum      SpectrumControl
     # chan_a        WaveControl
     # chan_b        WaveControl
@@ -162,7 +170,7 @@ class GDC
   patt_shuffle  addr pattern_buf - 256    # pattern shuffle index
   mini_stk_end  addr patt_shuffle[0], 2   # stack for main program
   intr_stk_end  addr mini_stk_end[-80], 2 # stack for interrupt handler
-  wave_control  addr 0, WaveControl
+  # wave_control  addr 0, WaveControl
 
   ##########
   # Macros #
@@ -372,8 +380,8 @@ class GDC
                   # ld   hl, dvar.rotate_flags
                   # set  B_RND_PATTERN, [hl]
 
-                  # ld   hl, extra_hide
-                  # call wait_for_next.set_extra
+                  ld   hl, extra_hide
+                  call wait_for_next.set_extra
   
                   halt
                   ld   a, 0b01010101
@@ -384,16 +392,25 @@ class GDC
 
                   # ld   hl, extra_show
                   # call wait_for_next.set_extra
+                  memcpy pattern_ani1, pattern_buf, 256
+                  ld   hl, dvar.scroll_ctrl.bits
+                  ld   [hl], 1
+                  ld   hl, scroll_text
+                  ld   [dvar.scroll_ctrl.text_cursor], hl
+                  ld   [dvar.text_cursor], hl
 
-                  ld   hl, 0x0000
+                  ld   hl, 0x8000
+                  # ld   hl, 0x0000
                   ld   [dvar.pattx_control.value], hl
-                  ld   hl, 0x8080
+                  ld   hl, 0x8000
                   ld   [dvar.patty_control.value], hl
                   ld   hl, dvar.scale_control
                   ld   [hl], 0 # frms
                   inc  hl
-                  ld   [hl], 0xB0 # tgt_incr
-                  ld   hl, extra_spectrum
+                  # ld   [hl], 0xB0 # tgt_incr
+                  ld   [hl], 0x80 # tgt_incr
+                  # ld   hl, extra_spectrum
+                  ld   hl, extra_scroll
                   call wait_for_next.set_extra
 
                   ld   a, 0b00011111
@@ -583,7 +600,7 @@ class GDC
                 ld   c, 8             # 8 character lines
                 exx                   # save screen address and height
                 ex   af, af           # restore code
-                char_ptr_from_code [vars.chars], a, tt:de
+                char_ptr_from_code([vars.chars], a, tt:de)
                 enlarge_char8_16 compact:false, over: :or, scraddr:nil, assume_chars_aligned:true
                 ret
 
@@ -1358,6 +1375,73 @@ class GDC
   #                 ret
   # end
 
+  ns :extra_scroll do
+                  ld   hl, dvar.scale_control
+                  ld   [hl], 0 # frms
+                  ld   hl, dvar.scroll_ctrl.chars_temp
+                  ld   c, 1 # a color
+                  ld   de, pattern_buf | 0x40
+
+    cloop         ld   a, [hl]
+                  inc  l
+                  scf
+                  rla
+                  ld   b, a
+    bloop         jr   NC, copy_color
+    put_color     ld   a, [de]
+                  anda 0b11111000
+                  ora  c
+                  ld   [de], a
+                  inc  e
+                  sla  b
+                  jr   Z, exit_bloop
+                  jr   C, put_color
+    copy_color    inc  d
+                  ld   a, [de]
+                  dec  d
+                  ld   [de], a
+                  inc  e
+                  sla  b
+                  jr   NC, copy_color
+                  jr   NZ, put_color
+    exit_bloop    ld   a, e
+                  cp   0x40+0x80
+                  jr   C, cloop
+
+                  ld   b, 8
+                  ld16 de, hl # dvar.scroll_ctrl.bits
+                  ld   a, l
+                  add  b      # dvar.scroll_ctrl.char_data[7]
+                  ld   l, a
+    rloop         sla  [hl] # 3rd char
+                  dec  l
+                  ex   de, hl
+                  dec  l
+                  rl   [hl]
+                  dec  l
+                  rl   [hl]
+                  ex   de, hl
+                  djnz rloop
+
+                  dec  [hl] # dvar.scroll_ctrl.bits
+                  ret  NZ
+                  ld   [hl], 8
+
+                  ld   hl, [dvar.scroll_ctrl.text_cursor]
+    read_char     ld   a, [hl]
+                  ora  a
+                  jr   Z, reset_text
+                  inc  hl
+                  ld   [dvar.scroll_ctrl.text_cursor], hl
+                  char_ptr_from_code([vars.chars], a, tt:de)
+                  ld   de, dvar.scroll_ctrl.char_data
+                  ld   bc, 8
+                  ldir
+                  ret
+    reset_text    ld   hl, [dvar.text_cursor]
+                  jr   read_char
+  end
+
   ns :extra_spectrum do
                   ld   hl, dvar.scale_control
                   ld   [hl], 0 # frms
@@ -1701,7 +1785,7 @@ class GDC
                   xor  e                       # ((original ^ value) & ~mask) ^ value
                   ld   [hl], a
                   inc  l
-                  rl   b
+                  sla  b
                   jr   NZ, bitloop
                   pop  de
                   pop  hl
@@ -1773,6 +1857,7 @@ class GDC
   # 0xF8: backspace
   # 0x01..0x1f: wait this many frames * 8
   # 0xFF: clear ink screen
+  scroll_text   db "SPECCY 2019.04.06!!!!!  ", 0
   intro_text    data "\x08\x92\x82G.D.C.\x04\x82\xA0presents\x1F\xFF\xF3\x85\x4FM O V.E N T\x04"
                 db 0
   greetz_text   data "\xF1\x81\x18Respec' @:\x92\x30\x04Fred\x92\x40\x04Grych\x92\x50\x04KYA\x92\x60\x04M0nster\x92\x70\x04Tygrys\x92\x80\x04Voyager\x92\x90\x04Woola-T"
@@ -1995,6 +2080,7 @@ start +start end_of_code
 rotate_int +rotate_int
 control_value +control_value
 extra_spectrum
+extra_scroll
 pattern1
 pattern3
 pattern6
@@ -2029,6 +2115,8 @@ dvar.snake_control
 dvar.rotate_state
 dvar.rotator
 dvar.seed1 dvar.seed2
+dvar.scroll_ctrl
+dvar.spectrum
 dvar
 +dvar
 dvar_end
