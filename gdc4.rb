@@ -13,7 +13,7 @@ require 'utils/shuffle'
 require 'utils/sincos'
 # require 'gdc/bfont'
 require 'utils/bigfont'
-require_relative 'music5'
+require_relative 'music6'
 
 class GDC
   include Z80
@@ -28,10 +28,10 @@ class GDC
   #
   FULL_SCREEN_MODE = false
 
-  B_ROTATE_SIMPLY = 0
-  B_ENABLE_ZOOM   = 1
-  B_RND_PATTERN   = 1
-  B_EFFECT_OVER   = 7
+  B_ROTATE_SIMPLY = 0 # if set simple rotator is enabled
+  B_ENABLE_ZOOM   = 1 # if set simple rotator also simple zooms back and forth
+  B_RND_PATTERN   = 1 # if B_ROTATE_SIMPLY is unset and this is set, the advanced control moves the pattern around
+  B_EFFECT_OVER   = 7 # is set when some extra effect is over
 
   ###########
   # Exports #
@@ -103,48 +103,55 @@ class GDC
   end
 
   class SpectrumControl < Label
+    margin0   byte
     margin1   byte
     data      byte, 16
     margin2   byte
+    margin3   byte
   end
 
   # all demo variables
   class DemoVars < Label
-    pattern_lo    byte
-    pattern_hi    byte
-    pattern       pattern_lo word # current pattern in the process of randomized swap
-    fgcolor       byte            # pixel grid current fg color on the 3 most significant bits
-    at_position   ZXSys::Cursor   # text cursor
-    general_delay byte            # some delay counter
-    logo_current  byte            # logo shuffle cursor
-    logo_mask     byte            # current logo show/clear mask
-    text_delay    byte            # text delay counter
-    text_cursor   word            # pointer to text
-    colors_delay  byte            # colors delay counter
-    shuffle_state byte            # current shuffle cursor
-    rotate_flags  byte            # rotation control with B_* flags
-    scale_control ValueControl    # advanced scale control
-    angle_control ValueControl    # advanced angle control
-    pattx_control ValueControl    # advanced pan x control
-    patty_control ValueControl    # advanced pan y control
-    snake_control SnakeControl    # color snake control
-    rotate_state  RotateState     # simple scale/angle control
-    rotator       Rotator, 2      # 2 rotators: 1st for left to right and 2nd right to left
-    x1            word            # normalized pan x shift for current iteration
-    move_x        word            # simple move delta x
-    rotate_delay  byte            # a delay for rotate delta
-    rotate_delta  byte            # simple rotate delta
-    pattern_bufh  byte            # address (MSB) of the current render buffer
-    anim_wait     byte            # animation slowdown counter
-    anim_frames   word            # current animation frames no animation if 0
-    anim_start    word            # next animation frames
-    seed1         word            # 1st seed for rnd rotate control
-    seed2         word            # 2nd seed for extra tasks' rnd
-    scroll_ctrl   ScrollControl
-    spectrum      SpectrumControl
-    # chan_a        WaveControl
-    # chan_b        WaveControl
-    # chan_c        WaveControl
+    pattern_lo      byte
+    pattern_hi      byte
+    pattern         pattern_lo word # current pattern in the process of randomized swap
+    fgcolor         byte            # pixel grid current fg color on the 3 most significant bits
+    bgcolor         byte            # pixel grid current bg color on the paper bits (3-5), used by extra_destroy
+    at_position     ZXSys::Cursor   # text cursor
+    general_delay   byte            # some delay counter
+    logo_current    byte            # logo shuffle cursor
+    logo_mask       byte            # current logo show/clear mask
+    text_delay      byte            # text delay counter
+    text_cursor     word            # pointer to text
+    colors_delay    byte            # colors delay counter
+    shuffle_state   byte            # current shuffle cursor
+    rotate_flags    byte            # rotation control with B_* flags
+    scale_control   ValueControl    # advanced scale control
+    angle_control   ValueControl    # advanced angle control
+    pattx_control   ValueControl    # advanced pan x control
+    patty_control   ValueControl    # advanced pan y control
+    snake_control   SnakeControl    # color snake control
+    rotate_state    RotateState     # simple scale/angle control
+    rotator         Rotator, 2      # 2 rotators: 1st for left to right and 2nd right to left
+    x1              word            # normalized pan x shift for current iteration
+    move_x          word            # simple move delta x
+    move_y          word            # simple move delta y
+    rotate_delay    byte            # a delay for rotate delta
+    rotate_delta    byte            # simple rotate delta
+    pattern_bufh    byte            # address (MSB) of the current render buffer
+    anim_wait       byte            # animation slowdown counter
+    anim_frames     word            # current animation frames no animation if 0
+    anim_start      word            # next animation frames
+    seed1           word            # 1st seed for rnd rotate control
+    seed2           word            # 2nd seed for extra tasks' rnd
+    counter_sync_lo byte
+    counter_sync_hi byte
+    counter_sync    counter_sync_lo word
+    scroll_ctrl     ScrollControl
+    spectrum        SpectrumControl
+    # chan_a          WaveControl
+    # chan_b          WaveControl
+    # chan_c          WaveControl
   end
 
   ########
@@ -307,52 +314,69 @@ class GDC
                   ld   hl, extra_text
                   call wait_for_next.set_extra
 
-                  # ld   hl, -1024
-                  # ld   [dvar.move_x], hl
-
-                  ld   a, 100
+                  ld   hl, 300
+                  call synchronize_music.set_hl
+                  ld   hl, ludek_anim1a
+                  ld   [dvar.anim_start], hl
+                  ld   a, 20
                   call wait_for_next.set_delay
-
+                  ld   hl, ludek_anim2
+                  ld   [dvar.anim_start], hl
+                  call clearscr
+                  ld   hl, 372
+                  call synchronize_music.set_hl
+                  # ld   a, 15
+                  # call wait_for_next.set_delay
                   ld   a, -1
                   ld   [dvar.rotate_delta], a
-                  ld   a, 80
+                  ld   a, 40
                   call wait_for_next.set_delay
+
+                  ld   hl, 128+16
+                  ld   [dvar.move_y], hl
+                  ld   hl, extra_spin
+                  call wait_for_next.set_extra
 
                   ld   hl, dvar.rotate_flags
                   set  B_ENABLE_ZOOM, [hl]
 
-                  ld   a, 120
+                  ld   hl, 0x0111
+                  ld   [dvar.move_x], hl
+                  # ld   hl, 128
+                  # ld   [dvar.move_y], hl
+                  ld   a, 8
+                  call wait_for_next.set_delay
+                  ld   hl, 0
+                  ld   [dvar.move_x], hl
+                  ld   hl, 0x8800
+                  ld   [dvar.pattx_control.value], hl
+                  ld   a, 60
+                  call wait_for_next.set_delay
+                  ld   hl, 0
+                  ld   [dvar.move_y], hl
+                  ld   hl, 0x3800
+                  ld   [dvar.patty_control.value], hl
+                  ld   a, 28
                   call wait_for_next.set_delay
 
-                  ld   hl, ludek_anim1a
-                  ld   [dvar.anim_start], hl
-                  ld   a, 40
-                  call wait_for_next.set_delay
-
-                  ld   hl, ludek_anim2
-                  ld   [dvar.anim_start], hl
-
-                  ld   hl, greetz_text
-                  ld   [dvar.text_cursor], hl
-
-                  # ld   hl, dvar.rotate_flags
-                  # res  B_ENABLE_ZOOM, [hl]
-
-                  ld   hl, extra_spin
-                  call wait_for_next.set_extra
-                  # ld   a, 190
-                  # call wait_for_next.set_delay
+                  ld   hl, dvar.rotate_flags
+                  res  B_ENABLE_ZOOM, [hl]
 
                   ld   hl, 0
                   ld   [dvar.anim_frames], hl
                   ld   a, pattern_buf >> 8
                   ld   [dvar.pattern_bufh], a
+                  ld   hl, dvar.rotate_flags
+                  set  B_ENABLE_ZOOM, [hl]
+
+                  ld   hl, extra_unspin
+                  call wait_for_next.set_extra
 
                   # convert current simple rotate angle and scale states to control values
                   ld   hl, dvar.angle_control.tgt_incr
                   ld   [hl], 128+127 # target
                   inc  l
-                  ld   [hl], 128-64 # current
+                  ld   [hl], 128-32 # current
                   ld   de, dvar.rotate_state.angle
                   ld   a, [de]      # angle
                   inc  l
@@ -374,63 +398,151 @@ class GDC
                   ld   hl, dvar.rotate_flags
                   ld   [hl], 0
 
-                  # ld   a, 80
-                  # call wait_for_next.set_delay
+                  ld   hl, title_text
+                  ld   [dvar.text_cursor], hl
+                  ld   hl, extra_text
+                  call wait_for_next.set_extra
+                  ld   hl, greetz_text
+                  ld   [dvar.text_cursor], hl
 
-                  # ld   hl, dvar.rotate_flags
-                  # set  B_RND_PATTERN, [hl]
+                  ld   a, 80
+                  call wait_for_next.set_delay
 
-                  ld   hl, extra_hide
+                  ld   hl, dvar.rotate_flags
+                  set  B_RND_PATTERN, [hl]
+
+                  ld   hl, 16<<8|0
+                  ld   [dvar.scale_control.frms], hl
+
+                  ld   hl, extra_hide2
                   call wait_for_next.set_extra
   
                   halt
                   ld   a, 0b01010101
                   call alt_clear_scr
 
-                  # ld   a, 0b11011111
-                  # ld   [dvar.fgcolor], a
+                  ld   a, 0b00011111
+                  ld   [dvar.fgcolor], a
 
-                  # ld   hl, extra_show
-                  # call wait_for_next.set_extra
-                  memcpy pattern_ani1, pattern_buf, 256
-                  ld   hl, dvar.scroll_ctrl.bits
-                  ld   [hl], 1
-                  ld   hl, scroll_text
-                  ld   [dvar.scroll_ctrl.text_cursor], hl
-                  ld   [dvar.text_cursor], hl
+                  ld   hl, (128-127)<<8|0
+                  ld   [dvar.angle_control.frms], hl
 
-                  ld   hl, 0x8000
-                  # ld   hl, 0x0000
-                  ld   [dvar.pattx_control.value], hl
-                  ld   hl, 0x8000
-                  ld   [dvar.patty_control.value], hl
-                  ld   hl, dvar.scale_control
-                  ld   [hl], 0 # frms
-                  inc  hl
-                  # ld   [hl], 0xB0 # tgt_incr
-                  ld   [hl], 0x80 # tgt_incr
-                  # ld   hl, extra_spectrum
-                  ld   hl, extra_scroll
+                  ld   hl, extra_destroy2
                   call wait_for_next.set_extra
+
+                  ld   hl, (128+127)<<8|128
+                  ld   [dvar.angle_control.frms], hl
+                  ld   hl, 255<<8|0
+                  ld   [dvar.scale_control.frms], hl
+
+                  ld   a, 0b01011111
+                  ld   [dvar.fgcolor], a
+
+                  ld   hl, pattern2
+                  ld   [dvar.pattern], hl
+                  ld   hl, extra_swap2
+                  call wait_for_next.set_extra
+
+                  ld   hl, 1429 #1392
+                  call synchronize_music.set_hl
 
                   ld   a, 0b00011111
                   ld   [dvar.fgcolor], a
 
-                  ld   hl, extra_destroy
+                  ld   hl, extra_colors
                   call wait_for_next.set_extra
 
-    [pattern2, pattern3].each_with_index do |addr, i|
-                  ld   hl, addr
+                  ld   a, 24
+                  call wait_for_next.set_delay
+
+                  ld   a, 0b10111111
+                  ld   [dvar.fgcolor], a
+                  ld   a, 3
+                  call extra_colors.set_fg_color
+
+                  ld   hl, pattern3
                   ld   [dvar.pattern], hl
-                  ld   hl, extra_swap
+                  ld   hl, extra_swap2
                   call wait_for_next.set_extra
+
+                  ld   hl, 1801
+                  call synchronize_music.set_hl
+
+                  ld   hl, 128<<8|0
+                  ld   [dvar.scale_control.frms], hl
+
+                  ld   a, 0b00011111
+                  ld   [dvar.fgcolor], a
 
                   ld   hl, extra_colors
                   call wait_for_next.set_extra
-      (1 - i).times do
-                  call wait_for_next
-      end
-    end
+
+                  ld   a, 24
+                  call wait_for_next.set_delay
+
+                  ld   a, 6
+                  call extra_colors.set_fg_color
+
+                  ld   a, 24
+                  call wait_for_next.set_delay
+
+                  ld   hl, 0<<8|0
+                  ld   [dvar.scale_control.frms], hl
+
+                  ld   a, 0b11011111
+                  ld   [dvar.fgcolor], a
+                  ld   a, 0b00010000
+                  ld   [dvar.bgcolor], a
+                  ld   hl, extra_destroy2
+                  call wait_for_next.set_extra
+
+        # memcpy pattern_ani1, pattern_buf, 256
+        # ld   hl, dvar.scroll_ctrl.bits
+        # ld   [hl], 1
+        # ld   hl, scroll_text
+        # ld   [dvar.scroll_ctrl.text_cursor], hl
+        # ld   [dvar.text_cursor], hl
+        # ld   hl, extra_scroll
+        # call wait_for_next.set_extra
+
+                  # # ld   hl, 0x8000
+                  ld   hl, dvar.rotate_flags
+                  res  B_RND_PATTERN, [hl]
+                  ld   hl, 0x0000
+                  ld   [dvar.pattx_control.value], hl
+                  ld   hl, 0x4000
+                  # # ld   hl, 0x8000
+                  ld   [dvar.patty_control.value], hl
+                  ld   hl, 0xB000
+                  ld   [dvar.scale_control.frms], hl
+                  ld   hl, 128<<8|0
+                  ld   [dvar.angle_control.frms], hl
+                  ld   hl, dvar.rotate_flags
+                  res  B_RND_PATTERN, [hl]
+                  ld   hl, 3959 - 168
+                  ld   [dvar.counter_sync], hl
+                  ld   hl, extra_spectrum
+                  call wait_for_next.set_extra
+
+                  ld   hl, 0x0000
+                  ld   [dvar.scale_control.frms], hl
+                  ld   hl, dvar.rotate_flags
+                  set  B_RND_PATTERN, [hl]
+                  ld   hl, 3959
+                  ld   [dvar.counter_sync], hl
+                  ld   hl, extra_spectrum
+                  call wait_for_next.set_extra
+
+                  ld   hl, 0xFF00
+                  ld   [dvar.scale_control.frms], hl
+                  memcpy pattern_buf, pattern3, 256
+                  # memcpy pattern_ani1, pattern3, 256
+                  # ld   a, pattern_ani1 >> 8
+                  # ld   [dvar.pattern_bufh], a
+                  # memcpy pattern_buf, pattern_ani1, 256
+                  # ld   a, pattern_ani1 >> 8
+                  # ld   [dvar.pattern_bufh], a
+
                   ld   a, 0
                   call extra_colors.set_fg_clrbrd
                   ld   hl, extra_random
@@ -482,26 +594,27 @@ class GDC
                   ld   bc, [vars.seed]
                   ret
 
-    ns :wait_for_next do
-      wloop       halt
-      extra       call just_wait
-                  call rom.break_key
-                  jr   NC, demo_exit
-                  ld   hl, dvar.rotate_flags
-                  bit  B_EFFECT_OVER, [hl]
-                  jr   Z, wloop
-                  res  B_EFFECT_OVER, [hl]
-                  ret
-      set_delay   ld   [dvar.general_delay], a
-      reset       ld   hl, just_wait
-      set_extra   ld   [extra + 1], hl
-                  jr   wloop
-      just_wait   ld   hl, dvar.general_delay
-                  dec  [hl]
-                  ret  NZ
-                  pop  af
-                  ret
-    end
+  end
+
+  ns :wait_for_next do
+    wloop       halt
+    extra       call just_wait
+                call rom.break_key
+                jr   NC, start.demo_exit
+                ld   hl, dvar.rotate_flags
+                bit  B_EFFECT_OVER, [hl]
+                jr   Z, wloop
+                res  B_EFFECT_OVER, [hl]
+                ret
+    set_delay   ld   [dvar.general_delay], a
+    reset       ld   hl, just_wait
+    set_extra   ld   [extra + 1], hl
+                jr   wloop
+    just_wait   ld   hl, dvar.general_delay
+                dec  [hl]
+                ret  NZ
+                pop  af
+                ret
   end
 
   ###############
@@ -788,11 +901,17 @@ class GDC
                   rra  # B_ROTATE_SIMPLY
                   jr   NC, update_ctrls
 
-                  # ld   hl, [dvar.move_x] # -683
-                  # ld   sp, dvar.pattx_control.value
-                  # pop  bc
-                  # add  hl, bc
-                  # push hl
+                  ld   hl, [dvar.move_x] # -683
+                  ld   sp, dvar.pattx_control.value
+                  pop  bc
+                  add  hl, bc
+                  push hl
+
+                  ld   hl, [dvar.move_y]
+                  ld   sp, dvar.patty_control.value
+                  pop  bc
+                  add  hl, bc
+                  push hl
 
                   # angle 0 - 255, scale 0-255 (1.0)
                   # c = angle (0..255), b = scale 0..7f
@@ -810,20 +929,17 @@ class GDC
                   # dec  c  # rotate
 
     skip_rotate   rra  # B_ENABLE_ZOOM
-                  # jr   NC, skip_scale_sm
                   sbc  a, a
                   add  b
                   ld   b, a
                   # dec  b  # scale
                   push bc
-                  jp   P, start_rotate0 # scale >= 0
+                  jp   P, skip_rot_adj # scale >= 0
                   xor  a  # scale < 0 ? scale = - (scale + 1)
                   inc  b  # scale + 1
                   sub  b  # a = 0 - (scale + 1)
                   ld   b, a
-                  jr   start_rotate1
-    # skip_scale_sm push bc
-    #               jr   start_rotate0
+                  jr   skip_rot_adj
 
     update_ctrls  rra  # B_RND_PATTERN
                   jr   NC, skip_patt_ct
@@ -845,13 +961,11 @@ class GDC
                   ex   af, af        # curr in a'
                   srl  a
                   ld   b, a          # scale = curr / 2
-
-    start_rotate0 ld   a, b          # scale
-    start_rotate1 cp   4             # scale >= 4 ? skip_adjust
-                  jr   NC, skip_adjust
+                  cp   4             # scale >= 4 ? skip_rot_adj
+                  jr   NC, skip_rot_adj
                   ld   b, 4          # scale = 4
                                      # calculate: dx1, dy1, dx2, dy2, x1, y1
-    skip_adjust   ld   a, c          # angle
+    skip_rot_adj  ld   a, c          # angle
                   sincos_from_angle sincos, h, l
                   ld   sp, hl     # hl: address of SinCos entry from an angle in a (256 based)
                   pop  de         # sin(angle)
@@ -1032,10 +1146,19 @@ class GDC
                   add  [hl]
                   ld   [hl], a
                   ret  NC
-                  inc  hl
+                  inc  hl # rotate_delta
                   dec  [hl]
                   ld   a, [hl]
-                  cp   -64
+                  cp   -65
+                  ret  NZ
+                  jr   signal_next
+  end
+
+  ns :extra_unspin do
+                  ld   hl, dvar.rotate_delta
+                  inc  [hl]
+                  ld   a, [hl]
+                  cp   -1
                   ret  NZ
                   jr   signal_next
   end
@@ -1048,6 +1171,11 @@ class GDC
                   ld   de, signal_next
                   push de
     apply         ld   a, [hl]
+                  anda 0b00011111
+                  ret  NZ
+                  ld   a, [hl]
+                  add  32-24
+                  ld   [hl], a
                   anda 0b11100000
                   3.times { rlca }
     set_fg_clrbrd out (254), a
@@ -1089,9 +1217,23 @@ class GDC
                   ret
   end
 
-  # ns :extra_wait do
-  #                 ret
-  # end
+  ns :synchronize_music do
+                  ld   de, music.music_control.counter_hi
+                  ld   hl, dvar.counter_sync_hi
+                  ld   a, [de]
+                  cp   [hl]
+                  ret  C
+                  jr   NZ, signal_next
+                  dec  de
+                  dec  hl
+                  ld   a, [de]
+                  cp   [hl]
+                  ret  C
+                  jp   signal_next
+    set_hl        ld   [dvar.counter_sync], hl
+                  ld   hl, synchronize_music
+                  jp   wait_for_next.set_extra
+  end
 
   # write text
   ns :extra_text do
@@ -1244,6 +1386,11 @@ class GDC
                   ret
   end
 
+  ns :extra_hide2 do
+                  call extra_hide
+                  jp   extra_hide
+  end
+
   # swap pattern and hide ink
   ns :extra_swap_hide do
                   call x_shuffle
@@ -1274,7 +1421,7 @@ class GDC
                   ret
   end
 
-  # swap pattern
+  # swap pattern's paper color
   ns :extra_swap do
                   call x_shuffle
                   jr   NZ, apply
@@ -1287,14 +1434,24 @@ class GDC
                   jp   extra_show.mix_fg_color
   end
 
-  # destroy pattern
+  ns :extra_swap2 do
+                  call extra_swap
+                  jp   extra_swap
+  end
+
+  # destroy pattern to bgcolor
   ns :extra_destroy do
                   call x_shuffle
                   jr   NZ, apply
                   ld   de, signal_next
                   push de
-    apply         xor  a
+    apply         ld   a, [dvar.bgcolor]
                   jp   extra_show.mix_fg_color
+  end
+
+  ns :extra_destroy2 do
+                  call extra_destroy
+                  jp   extra_destroy
   end
 
   # ns :extra_wave do
@@ -1439,15 +1596,14 @@ class GDC
                   ldir
                   ret
     reset_text    ld   hl, [dvar.text_cursor]
+                  call signal_next
                   jr   read_char
   end
 
   ns :extra_spectrum do
                   ld   hl, dvar.scale_control
                   ld   [hl], 0 # frms
-                  # ld   a, [music.music_control.counter]
-                  # ora  a
-                  # jp   Z, signal_next
+
                   ld   hl, pattern_buf
                   ld   de, dvar.spectrum.data
                   ld   a, 16
@@ -1498,6 +1654,8 @@ class GDC
                   dec  a
                   jr   NZ, vloop
 
+                  call synchronize_music
+
                   ld   hl, dvar.spectrum.data
                   ld   de, music.music_control.chan_a.current_note
                   # ld   bc, music.music_control.ay_registers.volume_a
@@ -1522,6 +1680,8 @@ class GDC
                   ld   a, [bc] # volume
                   ld   b, a
                   srl  b
+                  ld   c, b
+                  srl  c
                   cp   [hl]
                   jr   C, skipmix1
                   # ld   a, 0x7F
@@ -1532,6 +1692,7 @@ class GDC
                   # ora  c
                   ld   [hl], a
     skipmix1      inc  l
+                  inc  l
                   ld   a, b
                   cp   [hl]
                   jr   C, skipmix2
@@ -1541,10 +1702,19 @@ class GDC
                   # ld   c, a
                   # sbc  a, a
                   # ora  c
-                  add  0x1F
+                  # add  0x1F
                   ld   [hl], a
     skipmix2      dec  l
+                  ld   a, c
+                  cp   [hl]
+                  jr   C, skipmix3
+                  ld   [hl], a
+    skipmix3      dec  l
                   dec  l
+                  cp   [hl]
+                  jr   C, skipmix4
+                  ld   [hl], a
+    skipmix4      dec  l
                   ld   a, b
                   cp   [hl]
                   ret  C
@@ -1554,7 +1724,7 @@ class GDC
                   # ld   c, a
                   # sbc  a, a
                   # ora  c
-                  add  0x1F
+                  # add  0x1F
                   ld   [hl], a
                   ret
 
@@ -1718,7 +1888,7 @@ class GDC
 
   ns :make_figurines do
                   clrmem pattern_ani1, 3*256, 0x02
-                  clrmem pattern_ani4, 3*256, 0b01111110
+                  clrmem pattern_ani4, 3*256, 0b01111010
                   ld   c, 0b10000111 # color mask
                   ld   hl, ludek1_data
                   ld   d, pattern_ani1 >> 8
@@ -1858,7 +2028,9 @@ class GDC
   # 0x01..0x1f: wait this many frames * 8
   # 0xFF: clear ink screen
   scroll_text   db "SPECCY 2019.04.06!!!!!  ", 0
-  intro_text    data "\x08\x92\x82G.D.C.\x04\x82\xA0presents\x1F\xFF\xF3\x85\x4FM O V.E N T\x04"
+  intro_text    data "\x08\x92\x82G.D.C.\x04\x82\xA0presents"#\x1F\xFF\xF3\x85\x4FM O V.E N T\x04"
+                db 0
+  title_text    data "\xF6\x85\x4FM O V E N S"
                 db 0
   greetz_text   data "\xF1\x81\x18Respec' @:\x92\x30\x04Fred\x92\x40\x04Grych\x92\x50\x04KYA\x92\x60\x04M0nster\x92\x70\x04Tygrys\x92\x80\x04Voyager\x92\x90\x04Woola-T"
                 data "\x1F\xFF\xF4\x81\x10Made\x8A\x20for\x8F\x30SPECCY\x96\x4004.19"
@@ -2000,7 +2172,7 @@ class GDC
                    0xF4,0x44,0x44,0xCF,
                    0xFF,0x66,0x26,0xFF,
                    0xFF,0x66,0x66,0xAF,
-                   0xFF,0xF6,0xE0,0xFF,
+                   0xFF,0xF6,0x60,0xFF,
                    0xFF,0xF3,0xBF,0xFF,
                    0xFF,0xBB,0xBB,0xFF,
                    0xFB,0xBB,0xBB,0xBF,
@@ -2110,9 +2282,13 @@ dvar.rotate_flags
 dvar.scale_control
 dvar.angle_control
 dvar.pattx_control
+dvar.pattx_control.value
 dvar.patty_control
+dvar.patty_control.value
 dvar.snake_control
 dvar.rotate_state
+dvar.rotate_state.angle
+dvar.rotate_state.scale
 dvar.rotator
 dvar.seed1 dvar.seed2
 dvar.scroll_ctrl
