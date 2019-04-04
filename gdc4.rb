@@ -97,9 +97,10 @@ class GDC
 
   class ScrollControl < Label
     text_cursor word
-    chars_temp  byte, 16
+    color       byte
+    chars_temp  byte, 6*2
     bits        byte
-    char_data   byte, 8
+    char_data   byte, 6
   end
 
   class SpectrumControl < Label
@@ -167,13 +168,13 @@ class GDC
 
   dvar          addr 0xF000, DemoVars
   dvar_end      addr :next, 0
-  pattern_buf   addr 0xF700               # current pattern data
-  pattern_ani1  addr 0xF800               # animation pattern data
-  pattern_ani2  addr 0xF900               # animation pattern data
-  pattern_ani3  addr 0xFA00               # animation pattern data
-  pattern_ani4  addr 0xFB00               # animation pattern data
-  pattern_ani5  addr 0xFC00               # animation pattern data
-  pattern_ani6  addr 0xFD00               # animation pattern data
+  pattern_buf   addr 0xF800               # current pattern data
+  pattern_ani1  addr 0xF900               # animation pattern data
+  pattern_ani2  addr 0xFA00               # animation pattern data
+  pattern_ani3  addr 0xFB00               # animation pattern data
+  pattern_ani4  addr 0xFC00               # animation pattern data
+  pattern_ani5  addr 0xFD00               # animation pattern data
+  pattern_ani6  addr 0xFE00               # animation pattern data
   patt_shuffle  addr pattern_buf - 256    # pattern shuffle index
   mini_stk_end  addr patt_shuffle[0], 2   # stack for main program
   intr_stk_end  addr mini_stk_end[-80], 2 # stack for interrupt handler
@@ -402,8 +403,6 @@ class GDC
                   ld   [dvar.text_cursor], hl
                   ld   hl, extra_text
                   call wait_for_next.set_extra
-                  ld   hl, greetz_text
-                  ld   [dvar.text_cursor], hl
 
                   ld   a, 80
                   call wait_for_next.set_delay
@@ -496,15 +495,6 @@ class GDC
                   ld   hl, extra_destroy2
                   call wait_for_next.set_extra
 
-        # memcpy pattern_ani1, pattern_buf, 256
-        # ld   hl, dvar.scroll_ctrl.bits
-        # ld   [hl], 1
-        # ld   hl, scroll_text
-        # ld   [dvar.scroll_ctrl.text_cursor], hl
-        # ld   [dvar.text_cursor], hl
-        # ld   hl, extra_scroll
-        # call wait_for_next.set_extra
-
                   # # ld   hl, 0x8000
                   ld   hl, dvar.rotate_flags
                   res  B_RND_PATTERN, [hl]
@@ -530,34 +520,23 @@ class GDC
                   set  B_RND_PATTERN, [hl]
                   ld   hl, 3959
                   ld   [dvar.counter_sync], hl
-                  ld   hl, extra_spectrum
-                  call wait_for_next.set_extra
+                  call wait_for_next
 
                   ld   hl, 0xFF00
                   ld   [dvar.scale_control.frms], hl
                   memcpy pattern_buf, pattern3, 256
-                  # memcpy pattern_ani1, pattern3, 256
-                  # ld   a, pattern_ani1 >> 8
-                  # ld   [dvar.pattern_bufh], a
-                  # memcpy pattern_buf, pattern_ani1, 256
-                  # ld   a, pattern_ani1 >> 8
-                  # ld   [dvar.pattern_bufh], a
 
                   ld   a, 0
                   call extra_colors.set_fg_clrbrd
                   ld   hl, extra_random
                   call wait_for_next.set_extra
-                  2.times { call wait_for_next }
-
-                  ld   hl, extra_hide
-                  call wait_for_next.set_extra
-                  call wait_for_next.reset
+                  call wait_for_next
 
                   ld   hl, pattern6
                   ld   [dvar.pattern], hl
                   ld   hl, extra_swap_hide
                   call wait_for_next.set_extra
-                  call wait_for_next.reset
+                  # call wait_for_next.reset
 
                   ld   hl, dvar.snake_control.total
                   ld   [hl], 87 # total
@@ -565,6 +544,34 @@ class GDC
                   ld   [hl], 1  # counter
                   ld   hl, extra_snake
                   call wait_for_next.set_extra
+
+                  ld   hl, extra_hide2
+                  call wait_for_next.set_extra
+
+                  ld   hl, dvar.rotate_flags
+                  res  B_RND_PATTERN, [hl]
+                  ld   hl, 128<<8|0
+                  ld   [dvar.scale_control.frms], hl
+                  ld   hl, (128-8)<<8|0
+                  ld   [dvar.angle_control.frms], hl
+                  xor  a
+                  ld   [dvar.pattx_control.vlo], a
+                  ld   [dvar.patty_control.vlo], a
+
+                  memcpy pattern_ani1, pattern_buf, 256*3
+                  ld   hl, dvar.scroll_ctrl.bits
+                  ld   [hl], 24
+                  ld   hl, scroll_text
+                  ld   [dvar.scroll_ctrl.text_cursor], hl
+                  ld   [dvar.text_cursor], hl
+
+                  ld   hl, extra_scroll
+                  call wait_for_next.set_extra
+                  ld   hl, dvar.rotate_flags
+                  set  B_RND_PATTERN, [hl]
+                  call wait_for_next
+                  ld   a, pattern_buf >> 8
+                  ld   [dvar.pattern_bufh], a
 
                   ld   hl, pattern1
                   ld   [dvar.pattern], hl
@@ -574,11 +581,20 @@ class GDC
                   call clearscr
                   memcpy pattern_buf, pattern1, 256
 
+                  ld   hl, greetz_text
+                  ld   [dvar.text_cursor], hl
                   ld   hl, extra_text
                   call wait_for_next.set_extra
 
                   ld   a, 255
                   ld   [dvar.fgcolor], a
+                  xor  a
+                  ld   [dvar.bgcolor], a
+                  ld   hl, 255<<8|0
+                  ld   [dvar.scale_control.frms], hl
+                  ld   hl, 0<<8|0
+                  ld   [dvar.angle_control.frms], hl
+
                   ld   hl, extra_destroy
                   call wait_for_next.set_extra
                   call wait_for_next.reset
@@ -1533,12 +1549,17 @@ class GDC
   # end
 
   ns :extra_scroll do
-                  ld   hl, dvar.scale_control
-                  ld   [hl], 0 # frms
-                  ld   hl, dvar.scroll_ctrl.chars_temp
-                  ld   c, 1 # a color
-                  ld   de, pattern_buf | 0x40
-
+                  ld   hl, dvar.scroll_ctrl.color
+                  # ld   hl, dvar.scroll_ctrl.chars_temp
+                  inc  [hl]
+                  ld   a, [hl]
+                  inc  hl
+                  anda 0b00000111
+                  ora  0b00000010
+                  ld   c, a # a color
+                  # ld   c, 4 # a color
+    set_buf_a     ld   de, pattern_buf | 0x90
+                  # render text
     cloop         ld   a, [hl]
                   inc  l
                   scf
@@ -1562,10 +1583,15 @@ class GDC
                   jr   NC, copy_color
                   jr   NZ, put_color
     exit_bloop    ld   a, e
-                  cp   0x40+0x80
+                  cp   0x90 + 0x60
                   jr   C, cloop
-
-                  ld   b, 8
+                  # swap buffer
+                  ld   a, d
+                  ld   [dvar.pattern_bufh], a
+                  xor  2
+                  ld   [set_buf_a + 2], a
+                  # scroll bits
+                  ld   b, 6
                   ld16 de, hl # dvar.scroll_ctrl.bits
                   ld   a, l
                   add  b      # dvar.scroll_ctrl.char_data[7]
@@ -1581,9 +1607,9 @@ class GDC
                   djnz rloop
 
                   dec  [hl] # dvar.scroll_ctrl.bits
-                  ret  NZ
+                  jr   NZ, ensure_focus
                   ld   [hl], 8
-
+                  # copy character
                   ld   hl, [dvar.scroll_ctrl.text_cursor]
     read_char     ld   a, [hl]
                   ora  a
@@ -1591,12 +1617,31 @@ class GDC
                   inc  hl
                   ld   [dvar.scroll_ctrl.text_cursor], hl
                   char_ptr_from_code([vars.chars], a, tt:de)
+                  inc  hl
                   ld   de, dvar.scroll_ctrl.char_data
-                  ld   bc, 8
+                  ld   bc, 6
                   ldir
+
+    ensure_focus  ld   hl, dvar.scale_control.frms
+                  ld   [hl], 0
+                  ld   hl, dvar.pattx_control.vhi
+                  ld   c, 0x80
+                  call move_towards
+                  ld   hl, dvar.patty_control.vhi
+                  ld   c, 0xC0
+    move_towards  ld   a, [hl]
+                  cp   c
+                  ret  Z
+                  ccf
+                  ld   c, a    # cur_incr
+                  sbc  a       # dir: 0 if tgt > cur, -1 if tgt < cur
+                  ora  1       # dir: 1 if tgt > cur, -1 if tgt < cur
+                  add  c       # a: cur += dir
+                  ld   [hl], a
                   ret
-    reset_text    ld   hl, [dvar.text_cursor]
-                  call signal_next
+
+    reset_text    call signal_next
+                  ld   hl, [dvar.text_cursor]
                   jr   read_char
   end
 
@@ -2027,16 +2072,16 @@ class GDC
   # 0xF8: backspace
   # 0x01..0x1f: wait this many frames * 8
   # 0xFF: clear ink screen
-  scroll_text   db "SPECCY 2019.04.06!!!!!  ", 0
+  scroll_text   db '***** SPECCY.PL PARTY 2019.04.06 *****  ', 0
   intro_text    data "\x08\x92\x82G.D.C.\x04\x82\xA0presents"#\x1F\xFF\xF3\x85\x4FM O V.E N T\x04"
                 db 0
   title_text    data "\xF6\x85\x4FM O V E N S"
                 db 0
-  greetz_text   data "\xF1\x81\x18Respec' @:\x92\x30\x04Fred\x92\x40\x04Grych\x92\x50\x04KYA\x92\x60\x04M0nster\x92\x70\x04Tygrys\x92\x80\x04Voyager\x92\x90\x04Woola-T"
-                data "\x1F\xFF\xF4\x81\x10Made\x8A\x20for\x8F\x30SPECCY\x96\x4004.19"
-                data "\x04\x84\x60by r-type"
-                data "\x04\x86\x80of GDC"
-                data "\x1F\xFF\x82\x30\xf0Thanks\x89\x48for\x8A\x60watching!\x04\x8e\x80BYE!!!\x1F"
+  greetz_text   data "\xF1\x81\x18Greetings:\x92\x30\x04Fred\x92\x40\x04Grych\x92\x50\x04KYA\x92\x60\x04M0nster\x92\x70\x04Tygrys\x92\x80\x04Voyager\x92\x90\x04Woola-T"
+                data "\x1F\xFF\xF4" #"\x81\x10Made\x8A\x20for\x8F\x30SPECCY\x96\x4004.19"
+                data "\x04\x84\x90from r-type\x0A"
+                # data "\x04\x86\x80of GDC"
+                data "\x1F\xFF\x83\x38\xf0Thanks\x8A\x50for\x8B\x68watching!\x0A\x1F"
                 db 0
 
   pattern1_data db 0xA6, 0x00, 0b01111000,
@@ -2209,7 +2254,7 @@ class Program
   include Z80
   include Z80::TAP
 
-  GDC_SEED = 12347 # 640, 65535, 7777, 351, 9291, 6798, 4422, 1742
+  GDC_SEED = 422 # 12347, 288, 640, 65535, 7777, 351, 9291, 6798, 4422, 1742
 
   GDC = ::GDC.new 0x8000
 
