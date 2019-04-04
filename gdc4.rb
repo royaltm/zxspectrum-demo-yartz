@@ -539,7 +539,8 @@ class GDC
                   # call wait_for_next.reset
 
                   ld   hl, dvar.snake_control.total
-                  ld   [hl], 87 # total
+                  # ld   [hl], 87 # total
+                  ld   [hl], 43 # total
                   inc  hl
                   ld   [hl], 1  # counter
                   ld   hl, extra_snake
@@ -2081,7 +2082,7 @@ class GDC
                 data "\x1F\xFF\xF4" #"\x81\x10Made\x8A\x20for\x8F\x30SPECCY\x96\x4004.19"
                 data "\x04\x84\x90from r-type\x0A"
                 # data "\x04\x86\x80of GDC"
-                data "\x1F\xFF\x83\x38\xf0Thanks\x8A\x50for\x8B\x68watching!\x0A\x1F"
+                data "\x1F\xFF\x83\x38\xf0Thanks\x8A\x50for\x8B\x68watching!\x0A\x0F"
                 db 0
 
   pattern1_data db 0xA6, 0x00, 0b01111000,
