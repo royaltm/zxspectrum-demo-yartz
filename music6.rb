@@ -34,7 +34,7 @@ class Music
   ministack           addr 0xF500, 2
   track_stack_end     addr ministack[-8], AYMusic::TrackStackEntry
   empty_instrument    addr track_stack_end[-1]
-  fine_tones          addr 0xD000, 2 # count 256
+  fine_tones          addr 0xE400, 2 # count 256
   note_to_cursor      addr fine_tones[256], 2 # max count 96
   music_control       addr 0xF100, AYMusic::MusicControl
 
@@ -147,10 +147,12 @@ class Music
     a  4, 32; f  3, 32; g  3, 32; a  4, 32; g  3, 32; f  3, 32;
     g  3, 32; e  3, 32; f  3, 32; g  3, 32; f  3, 32; e  3, 32;
     # part 2
+    puts "counter1 (part 2): #{tick_counter}"
     rpt(8) do
       g  3, 32; d! 3, 32; f! 3, 32; g  3, 32; f! 3, 32; d! 3, 32;
     end
     # part 3
+    puts "counter1 (part 3): #{tick_counter}"
     rpt(2) do
       i :instr3_quiet;
       rpt(7) { c  3, 32; d  3, 32; d! 3, 32; }
@@ -158,6 +160,7 @@ class Music
       c! 3, 32; e  3, 32; g  3, 32
     end
     # part 4
+    puts "counter1 (part 4): #{tick_counter}"
     i :instr1_quiet;
     rpt(4) do
       g  3, 32; d! 3, 32; f  3, 32; g  3, 32; f  3, 32; d! 3, 32;
@@ -167,11 +170,13 @@ class Music
       g  3, 32; d! 3, 32; f  3, 32; a  4, 32; f  3, 32; d! 3, 32;
     end
     # part 5
+    puts "counter1 (part 5): #{tick_counter}"
     p 64
     i :instr1_loud
     g  3
     p 8, 16
     # i :instr1_quiet
+    puts "counter1 (part 5.1): #{tick_counter}"
     rpt(2) do
       p 8, 16;
       m2; ve 0; n 31
@@ -184,12 +189,14 @@ class Music
       m1; mt 0; mn 0;
       f  3
     end
+    puts "counter1 (part 6): #{tick_counter}"
     # part 6
     i :instr1_loud;
     c 3, 8, 16
     m2; ve 0; mn :mask_thrr2;
     rpt(14) { d  3, 32; e  3, 32; f  3, 32; }
     m1; mn 0; ne 0
+    puts "counter1 (part 6 over): #{tick_counter}"
   end
 
   music_track :track_a do
@@ -203,12 +210,14 @@ class Music
     sub :track_a_part1_6
 
     # part 7
+    puts "counter1 (part 7): #{tick_counter}"
     i :instr1_loud;
     c 3, 8, 16
     m2; ve 0; mn :mask_thrr2
     rpt(6) { d  3, 32; e  3, 32; f  3, 32; }
     p 32
     # part 8
+    puts "counter1 (part 8): #{tick_counter}"
     p 16, 32, 32
     mn 0;
     rpt(5) { d  3, 32; e  3, 32; f  3, 32; }
@@ -220,6 +229,7 @@ class Music
     m1; rpt(2) { c 3, 16, 32 }
     m2; ve 0; rpt(5) { d  3, 32; e  3, 32; f  3, 32; }
     # part 9
+    puts "counter1 (part 9): #{tick_counter}"
     p 32
     m1; i :instr1_loud;
     f  3, 16, 32; b  4, 16; e  4, 16, 32; a  5, 16; d  5, 16, 32; g  5, 16, 32;
@@ -241,11 +251,13 @@ class Music
     rpt(2) { c  4, 32; g  3, 32; c  3, 32; }
     rpt(2) { g  3, 32; d  3, 32; g  2, 32; }
     # part 10
+    puts "counter1 (part 10): #{tick_counter}"
     ve :env_vol_silent_sl_saw
     g  3, 32, 64; d  3, 32, 64; g  2, 32, 64;
     rpt(15) { g  3, 32; d  3, 32; g  2, 32; }
     ve 0; v 7
     # part 11
+    puts "counter1 (part 11): #{tick_counter}"
     g  3, 32; d  3, 32; g  2, 32;
     m1; i :instr3_quiet
     a  4, 32; e  3, 32; a  3, 32; 
@@ -253,6 +265,7 @@ class Music
     rpt(2) { d  4, 32; a  4, 32; d  3, 32; }
     f  4, 32; c  4, 32; f  3, 32; g  4, 32; d  4, 32; p 32
     # part 12
+    puts "counter1 (part 12): #{tick_counter}"
     rpt(4) { e  4, 32; b  4, 32; e  3, 32; }
     rpt(2) { d  4, 32; a  4, 32; d  3, 32; }
     c  4, 32; g  3, 32; c  3, 32;
@@ -420,11 +433,11 @@ class Music
     p  16, 32;
     p  16, 32;
 
-    puts "counter1: #{tick_counter}"
+    puts "counter1 (part 17.9): #{tick_counter}"
     m1; ce 0
     i :instr1_normal
     rpt(16) { f! 4, 16, 32; }
-    puts "counter1: #{tick_counter}"
+    puts "counter1 (before part 18): #{tick_counter}"
 
     sub :track_a_part1_6
 
@@ -447,12 +460,14 @@ class Music
     d  5, 32; e  5, 32; f! 5, 32;
     e  5, 32; f! 5, 32; g! 5, 32;
     # part 19
+    puts "counter1 (part 19): #{tick_counter}"
     m2; ve 0
     rpt(24) { f! 5, 32; g! 5, 32; a! 6, 32; }
     m1; i :instr1_quiet;
     rpt(2) { g! 5, 32; a! 6, 32; c  6, 32; }
     rpt(2) { a! 6, 32; c  6, 32; d  6, 32; }
     # part 20
+    puts "counter1 (part 20): #{tick_counter}"
     m1; i :instr1_normal;
     ce :chord_note2_4_6; a! 6, 8, 16;
     m2; ve 0; v 7; ce 0

@@ -82,7 +82,6 @@ class GDC
 
   # color snake control data
   class SnakeControl < Label
-    total     byte
     counter   byte
     color     byte
     delta     byte # 1, -1, 16, -16
@@ -120,8 +119,8 @@ class GDC
     bgcolor         byte            # pixel grid current bg color on the paper bits (3-5), used by extra_destroy
     at_position     ZXSys::Cursor   # text cursor
     general_delay   byte            # some delay counter
-    logo_current    byte            # logo shuffle cursor
-    logo_mask       byte            # current logo show/clear mask
+    # logo_current    byte            # logo shuffle cursor
+    # logo_mask       byte            # current logo show/clear mask
     text_delay      byte            # text delay counter
     text_cursor     word            # pointer to text
     colors_delay    byte            # colors delay counter
@@ -139,17 +138,17 @@ class GDC
     move_y          word            # simple move delta y
     rotate_delay    byte            # a delay for rotate delta
     rotate_delta    byte            # simple rotate delta
-    pattern_bufh    byte            # address (MSB) of the current render buffer
+    pattern_bufh    byte            # address (MSB) of the currently rendered buffer
     anim_wait       byte            # animation slowdown counter
-    anim_frames     word            # current animation frames no animation if 0
-    anim_start      word            # next animation frames
+    anim_frames     word            # current animation frames address; no animation if 0
+    anim_start      word            # restart animation frames address
     seed1           word            # 1st seed for rnd rotate control
     seed2           word            # 2nd seed for extra tasks' rnd
-    counter_sync_lo byte
-    counter_sync_hi byte
+    counter_sync_lo byte            # music counter target (LSB)
+    counter_sync_hi byte            # music counter target (MSB)
     counter_sync    counter_sync_lo word
-    scroll_ctrl     ScrollControl
-    spectrum        SpectrumControl
+    scroll_ctrl     ScrollControl   # scroll data
+    spectrum        SpectrumControl # analyzer data
     # chan_a          WaveControl
     # chan_b          WaveControl
     # chan_c          WaveControl
@@ -159,25 +158,25 @@ class GDC
   # Vars #
   ########
 
-  sincos        addr 0xE400, Z80SinCos::SinCos
-  pattern1      addr sincos - 256
-  pattern2      addr pattern1 - 256
-  pattern3      addr pattern2 - 256
-  pattern4      addr pattern3 - 256
-  pattern6      addr pattern4 - 256
+  sincos        addr 0xE700, Z80SinCos::SinCos
+  pattern1      addr sincos[256]
+  pattern2      addr pattern1[256]
+  pattern3      addr pattern2[256]
+  pattern4      addr pattern3[256]
+  pattern6      addr pattern4[256]
 
   dvar          addr 0xF000, DemoVars
   dvar_end      addr :next, 0
-  pattern_buf   addr 0xF800               # current pattern data
-  pattern_ani1  addr 0xF900               # animation pattern data
-  pattern_ani2  addr 0xFA00               # animation pattern data
-  pattern_ani3  addr 0xFB00               # animation pattern data
-  pattern_ani4  addr 0xFC00               # animation pattern data
-  pattern_ani5  addr 0xFD00               # animation pattern data
-  pattern_ani6  addr 0xFE00               # animation pattern data
-  patt_shuffle  addr pattern_buf - 256    # pattern shuffle index
-  mini_stk_end  addr patt_shuffle[0], 2   # stack for main program
-  intr_stk_end  addr mini_stk_end[-80], 2 # stack for interrupt handler
+  pattern_buf   addr 0xF800                 # current pattern data
+  pattern_ani1  addr 0xF900                 # animation pattern data
+  pattern_ani2  addr 0xFA00                 # animation pattern data
+  pattern_ani3  addr 0xFB00                 # animation pattern data
+  pattern_ani4  addr 0xFC00                 # animation pattern data
+  pattern_ani5  addr 0xFD00                 # animation pattern data
+  pattern_ani6  addr 0xFE00                 # animation pattern data
+  patt_shuffle  addr pattern_buf[-256]      # pattern shuffle index
+  mini_stk_end  addr patt_shuffle[0], 2     # stack for main program
+  intr_stk_end  addr mini_stk_end[-128], 2  # stack for interrupt handler
   # wave_control  addr 0, WaveControl
 
   ##########
@@ -399,8 +398,8 @@ class GDC
                   ld   hl, dvar.rotate_flags
                   ld   [hl], 0
 
-                  ld   hl, title_text
-                  ld   [dvar.text_cursor], hl
+                  # ld   hl, title_text
+                  # ld   [dvar.text_cursor], hl
                   ld   hl, extra_text
                   call wait_for_next.set_extra
 
@@ -442,7 +441,7 @@ class GDC
                   ld   hl, extra_swap2
                   call wait_for_next.set_extra
 
-                  ld   hl, 1429 #1392
+                  ld   hl, 1429
                   call synchronize_music.set_hl
 
                   ld   a, 0b00011111
@@ -509,10 +508,18 @@ class GDC
                   ld   [dvar.angle_control.frms], hl
                   ld   hl, dvar.rotate_flags
                   res  B_RND_PATTERN, [hl]
-                  ld   hl, 3959 - 168
+
+                  ld   hl, 3444
                   ld   [dvar.counter_sync], hl
                   ld   hl, extra_spectrum
                   call wait_for_next.set_extra
+
+                  ld   hl, 128+32<<8|240
+                  ld   [dvar.angle_control.frms], hl
+
+                  ld   hl, 3959 - 168
+                  ld   [dvar.counter_sync], hl
+                  call wait_for_next
 
                   ld   hl, 0x0000
                   ld   [dvar.scale_control.frms], hl
@@ -538,11 +545,10 @@ class GDC
                   call wait_for_next.set_extra
                   # call wait_for_next.reset
 
-                  ld   hl, dvar.snake_control.total
-                  # ld   [hl], 87 # total
-                  ld   [hl], 43 # total
-                  inc  hl
-                  ld   [hl], 1  # counter
+                  ld   a, 1
+                  ld   [dvar.snake_control.counter], a
+                  ld   hl, 5608
+                  ld   [dvar.counter_sync], hl
                   ld   hl, extra_snake
                   call wait_for_next.set_extra
 
@@ -564,15 +570,21 @@ class GDC
                   ld   [hl], 24
                   ld   hl, scroll_text
                   ld   [dvar.scroll_ctrl.text_cursor], hl
-                  ld   [dvar.text_cursor], hl
-
+                  # ld   [dvar.text_cursor], hl
+                  ld   hl, 6328
+                  ld   [dvar.counter_sync], hl
                   ld   hl, extra_scroll
                   call wait_for_next.set_extra
+
                   ld   hl, dvar.rotate_flags
                   set  B_RND_PATTERN, [hl]
+                  ld   hl, 6834 # 6520
+                  ld   [dvar.counter_sync], hl
                   call wait_for_next
+
                   ld   a, pattern_buf >> 8
                   ld   [dvar.pattern_bufh], a
+                  memcpy pattern_buf, pattern_ani1, 256
 
                   ld   hl, pattern1
                   ld   [dvar.pattern], hl
@@ -587,10 +599,28 @@ class GDC
                   ld   hl, extra_text
                   call wait_for_next.set_extra
 
-                  ld   a, 255
-                  ld   [dvar.fgcolor], a
+                  ld   hl, 7990 #7990 # 7794
+                  call synchronize_music.set_hl
+                  ld   hl, extra_text
+                  call wait_for_next.set_extra
+
+                  ld   hl, 8326
+                  call synchronize_music.set_hl
+                  ld   hl, extra_text
+                  call wait_for_next.set_extra
+
+                  ld   hl, 16<<8|0
+                  ld   [dvar.scale_control.frms], hl
+                  ld   hl, 128<<8|0
+                  ld   [dvar.angle_control.frms], hl
+
+                  ld   hl, 8588
+                  call synchronize_music.set_hl
+
                   xor  a
                   ld   [dvar.bgcolor], a
+                  dec  a
+                  ld   [dvar.fgcolor], a
                   ld   hl, 255<<8|0
                   ld   [dvar.scale_control.frms], hl
                   ld   hl, 0<<8|0
@@ -598,7 +628,8 @@ class GDC
 
                   ld   hl, extra_destroy
                   call wait_for_next.set_extra
-                  call wait_for_next.reset
+                  ld   a, 50
+                  call wait_for_next.set_delay
 
     demo_exit     di
                   call music.mute
@@ -1261,11 +1292,11 @@ class GDC
                   ld   hl, [dvar.text_cursor]
                   ld   de, [dvar.at_position]
     next_char     ld   a, [hl]
-                  ora  a
-                  jr   Z, signal_next
                   inc  hl
+                  ora  a
                   jp   M, check_control
                   ld   [dvar.text_cursor], hl
+                  jr   Z, signal_next
                   cp   32
                   jr   C, handle_wait
                   ex   af, af
@@ -1343,7 +1374,7 @@ class GDC
                   jr   Z, next_dir_rnd
                   ld   a, [hl] # counter
                   anda 0b00000001
-                  ret  NZ
+                  jr   NZ, skip_drawing
                   inc  hl
                   ld   c, [hl] # color
                   inc  hl
@@ -1357,13 +1388,8 @@ class GDC
                   anda 0b11111000
                   ora  c
                   ld   [hl], a
-                  ret
+    skip_drawing  jp   synchronize_music
     next_dir_rnd  push hl
-                  dec  hl      # total
-                  dec  [hl]
-                  jr   NZ, randomize
-                  pop  hl
-                  jp   signal_next
     randomize     call next_rnd2
                   ex   de, hl
                   pop  hl
@@ -1555,10 +1581,9 @@ class GDC
                   inc  [hl]
                   ld   a, [hl]
                   inc  hl
-                  anda 0b00000111
-                  ora  0b00000010
+                  anda 0b00000110
+                  ora  0b00000100
                   ld   c, a # a color
-                  # ld   c, 4 # a color
     set_buf_a     ld   de, pattern_buf | 0x90
                   # render text
     cloop         ld   a, [hl]
@@ -1608,8 +1633,9 @@ class GDC
                   djnz rloop
 
                   dec  [hl] # dvar.scroll_ctrl.bits
-                  jr   NZ, ensure_focus
-                  ld   [hl], 8
+                  jr   NZ, sync_focus
+
+    copy_chr      ld   [hl], 8 # reset bits
                   # copy character
                   ld   hl, [dvar.scroll_ctrl.text_cursor]
     read_char     ld   a, [hl]
@@ -1641,8 +1667,10 @@ class GDC
                   ld   [hl], a
                   ret
 
-    reset_text    call signal_next
-                  ld   hl, [dvar.text_cursor]
+    sync_focus    call synchronize_music
+                  jr   ensure_focus
+
+    reset_text    ld   hl, [dvar.text_cursor]
                   jr   read_char
   end
 
@@ -1806,6 +1834,7 @@ class GDC
                   jr   get_frame_ck
   end
 
+  # Red G D C letters on a white bright chequered background
   ns :make_pattern1 do
                   ld   hl, pattern1
                   ld   e, 0b00100010
@@ -1841,6 +1870,7 @@ class GDC
                   jr   loop0
   end
 
+  # Colored, centered frames.
   ns :make_pattern2 do
                 ld   hl, pattern2
                 push hl
@@ -1856,6 +1886,7 @@ class GDC
                 ret
   end
 
+  # Colored stripes
   ns :make_pattern3 do
                   ld   hl, pattern3
                   ld   c, 16
@@ -1876,6 +1907,7 @@ class GDC
                   ret
   end
 
+  # Red bricks
   ns :make_pattern4 do
                   ld   h, pattern4 >> 8
                   ld   de, pattern4_data
@@ -1916,6 +1948,7 @@ class GDC
                   jr   start
   end
 
+  # White bright chequered background
   ns :make_pattern6 do
                   ld   hl, pattern6
     pattern       ld   e, 0b11001100
@@ -1932,6 +1965,7 @@ class GDC
                   ret
   end
 
+  # Animated B/W and color figurines
   ns :make_figurines do
                   clrmem pattern_ani1, 3*256, 0x02
                   clrmem pattern_ani4, 3*256, 0b01111010
@@ -2073,16 +2107,16 @@ class GDC
   # 0xF8: backspace
   # 0x01..0x1f: wait this many frames * 8
   # 0xFF: clear ink screen
-  scroll_text   db '***** SPECCY.PL PARTY 2019.04.06 *****  ', 0
-  intro_text    data "\x08\x92\x82G.D.C.\x04\x82\xA0presents"#\x1F\xFF\xF3\x85\x4FM O V.E N T\x04"
+  intro_text    data "\x08\x92\x82G D C\x04\x82\xA0presents"#\x1F\xFF\xF3\x85\x4FM O V.E N T\x04"
                 db 0
-  title_text    data "\xF6\x85\x4FM O V E N S"
+  title_text    data "\xF6\x87\x4FY A R T Z"
                 db 0
+  scroll_text   db '*** SPECCY.PL PARTY 2019.04.06 ***', 0
   greetz_text   data "\xF1\x81\x18Greetings:\x92\x30\x04Fred\x92\x40\x04Grych\x92\x50\x04KYA\x92\x60\x04M0nster\x92\x70\x04Tygrys\x92\x80\x04Voyager\x92\x90\x04Woola-T"
-                data "\x1F\xFF\xF4" #"\x81\x10Made\x8A\x20for\x8F\x30SPECCY\x96\x4004.19"
-                data "\x04\x84\x90from r-type\x0A"
-                # data "\x04\x86\x80of GDC"
-                data "\x1F\xFF\x83\x38\xf0Thanks\x8A\x50for\x8B\x68watching!\x0A\x0F"
+                db 0
+                data "\xFF\xF4\x83\x90from r-type"
+                db 0
+                data "\xFF\xF0\x83\x38Thanks\x8A\x50for\x8B\x68watching!"
                 db 0
 
   pattern1_data db 0xA6, 0x00, 0b01111000,
@@ -2257,12 +2291,14 @@ class Program
 
   GDC_SEED = 422 # 12347, 288, 640, 65535, 7777, 351, 9291, 6798, 4422, 1742
 
-  GDC = ::GDC.new 0x8000
+  GDC = ::GDC.new 48000
+
+  export start
 
   label_import  ZXSys
   macro_import  ZX7
 
-                ld   hl, code_zx7
+  start         ld   hl, code_zx7
                 ld   de, GDC.org # start address
                 push de
                 call decompress
@@ -2285,6 +2321,9 @@ puts "DATA : #{gdc[:music] - gdc[:end_of_code]}"
 puts "MUSIC: #{gdc['+music']}"
 puts "wrktop: #{gdc.org + gdc.code.bytesize}"
 
+reserved = gdc['music.fine_tones'] - (gdc['music.notes'] + 96*2)
+raise "org too high by: #{reserved}" if reserved < 0
+
 def display_labels(program, names)
   names.map {|n| [n,program[n]]}
   .sort_by {|(n,v)| v}
@@ -2294,6 +2333,13 @@ def display_labels(program, names)
 end
 
 display_labels gdc, %w[
+dvar
+dvar.pattx_control.value
+dvar.patty_control.value
+dvar.rotate_state.angle
+dvar.rotate_state.scale
++dvar
+dvar_end
 start +start end_of_code
 rotate_int +rotate_int
 control_value +control_value
@@ -2319,39 +2365,16 @@ pattern_ani3
 pattern_ani4
 pattern_ani5
 pattern_ani6
-dvar.logo_current
-dvar.logo_mask
-dvar.text_delay
-dvar.text_cursor
-dvar.shuffle_state
-dvar.rotate_flags
-dvar.scale_control
-dvar.angle_control
-dvar.pattx_control
-dvar.pattx_control.value
-dvar.patty_control
-dvar.patty_control.value
-dvar.snake_control
-dvar.rotate_state
-dvar.rotate_state.angle
-dvar.rotate_state.scale
-dvar.rotator
-dvar.seed1 dvar.seed2
-dvar.scroll_ctrl
-dvar.spectrum
-dvar
-+dvar
-dvar_end
 mini_stk_end intr_stk_end
-sincos dvar.pattern dvar.fgcolor dvar.at_position patt_shuffle pattern_buf
+sincos patt_shuffle pattern_buf
 music music.init music.play music.mute music.music music.music.play
 music.instrument_table music.notes music.ministack music.note_to_cursor music.fine_tones
 music.track_stack_end music.empty_instrument
 music.music_control.counter
 music.music_control +music.music_control
-]
+] + GDC::DemoVars.members_of_struct.keys.map{|n| 'dvar.'+n }
 
-bootstrap = Program.new 0x4000
+bootstrap = Program.new Program::GDC.org - Program.code.bytesize
 # puts bootstrap.debug[0..52]
 code_compressed = ZX7.compress(Program::GDC.code[0, Program::GDC[:music] - Program::GDC.org])
 music_compressed = ZX7.compress(Program::GDC.code[Program::GDC[:music] - Program::GDC.org, Program::GDC['+music']])
@@ -2363,14 +2386,14 @@ puts "COMPRESSED SEPARATELY:\t#{code_compressed.bytesize + music_compressed.byte
 
 # Z80::TAP.read_chunk('gdc/loader_gdc_screen.tap').save_tap 'gdc.tap'
 program = Basic.parse_source <<-END
-   1 RANDOMIZE : RANDOMIZE USR VAL "32768": STOP
-9999 CLEAR VAL "32767": LOAD ""SCREEN$ : RANDOMIZE USR VAL "16384"
+   1 RANDOMIZE : RANDOMIZE USR #{Program::GDC.org}
+9998 STOP
+9999 CLEAR #{bootstrap.org-1}: LOAD ""CODE : RANDOMIZE USR #{bootstrap[:start]}
 END
-program.start = 9999
 puts program.to_source escape_keywords:true
-program.save_tap 'gdc'
-bootstrap.save_tap 'gdc', append: true
+program.save_tap 'yartz', name: 'Y.A.R.T.Z.', line: 9999
+bootstrap.save_tap 'yartz', name: 'y.a.r.t.z.', append: true
 
-Z80::TAP.parse_file('gdc.tap') do |hb|
+Z80::TAP.parse_file('yartz.tap') do |hb|
     puts hb.to_s
 end
