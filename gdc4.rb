@@ -2392,12 +2392,11 @@ puts "COMPRESSED CODE SIZE:\t#{code_compressed.bytesize} < #{Program::GDC[:music
 puts "COMPRESSED MUSIC SIZE:\t#{music_compressed.bytesize} < #{Program::GDC['+music']}"
 puts "COMPRESSED SEPARATELY:\t#{code_compressed.bytesize + music_compressed.bytesize}"
 
-# Z80::TAP.read_chunk('gdc/loader_gdc_screen.tap').save_tap 'gdc.tap'
 program = Basic.parse_source <<-END
-   0 REM Yet Another RoToZoomer by r-type/GDC
-   1 RANDOMIZE USR #{Program::GDC.org}
+   0 REM `8``8``8``8``8``8``8``8``8``PAPER 2``INK 6`  Yet Another `FLASH 1`RoToZoomer`FLASH 0``TAB 0``PAPER 0``INK 7`by r-type/GDC`TAB 0``PAPER 7``INK 0`
+   1 RANDOMIZE USR VAL "#{Program::GDC.org}"
 9998 STOP
-9999 CLEAR #{bootstrap.org-1}: LOAD ""CODE : RANDOMIZE USR #{bootstrap[:start]}
+9999 CLEAR VAL "#{bootstrap.org-1}": LOAD ""CODE : RANDOMIZE USR VAL "#{bootstrap[:start]}"
 END
 puts program.to_source escape_keywords:true
 program.save_tap 'yartz', name: 'Y A R T Z', line: 9999
