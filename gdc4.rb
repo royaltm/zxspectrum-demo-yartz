@@ -499,8 +499,7 @@ class GDC
                   res  B_RND_PATTERN, [hl]
                   ld   hl, 0x0000
                   ld   [dvar.pattx_control.value], hl
-                  ld   hl, 0x4000
-                  # # ld   hl, 0x8000
+                  ld   hl, 0xC000
                   ld   [dvar.patty_control.value], hl
                   ld   hl, 0xB000
                   ld   [dvar.scale_control.frms], hl
@@ -541,17 +540,21 @@ class GDC
 
                   ld   hl, pattern6
                   ld   [dvar.pattern], hl
-                  ld   hl, extra_swap_hide
+                  ld   hl, extra_swap_hide2
                   call wait_for_next.set_extra
                   # call wait_for_next.reset
 
-                  ld   a, 1
-                  ld   [dvar.snake_control.counter], a
                   ld   hl, 5608
                   ld   [dvar.counter_sync], hl
+                  ld   hl, 16<<8|128
+                  ld   [dvar.scale_control.frms], hl
+                  ld   a, 1
+                  ld   [dvar.snake_control.counter], a
                   ld   hl, extra_snake
                   call wait_for_next.set_extra
 
+                  ld   hl, (128+80)<<8|0
+                  ld   [dvar.angle_control.frms], hl
                   ld   hl, extra_hide2
                   call wait_for_next.set_extra
 
@@ -578,6 +581,8 @@ class GDC
 
                   ld   hl, dvar.rotate_flags
                   set  B_RND_PATTERN, [hl]
+                  ld   hl, (128+10)<<8|0
+                  ld   [dvar.angle_control.frms], hl
                   ld   hl, 6834 # 6520
                   ld   [dvar.counter_sync], hl
                   call wait_for_next
@@ -647,8 +652,8 @@ class GDC
   ns :wait_for_next do
     wloop       halt
     extra       call just_wait
-                call rom.break_key
-                jr   NC, start.demo_exit
+                # call rom.break_key
+                # jr   NC, start.demo_exit
                 ld   hl, dvar.rotate_flags
                 bit  B_EFFECT_OVER, [hl]
                 jr   Z, wloop
@@ -933,19 +938,14 @@ class GDC
                   dec  a          # lines -= 1
                   jp   NZ, tloop1 # tloop1 if lines != 0
 
-            # ld   a, 5
-            # out  (254), a
+                  # ld   a, 5
+                  # out  (254), a
                   ld   sp, intr_stk_end
                   call music.play
                   call animation
-      #             ld   b, 20
-      # busyloop    nop
-      #             djnz busyloop
-    # extra         call extra_wait
-
                   # calculate new coords (rotate and so on)
                   ld   a, [dvar.rotate_flags]
-            # out  (254), a
+                  # out  (254), a
                   rra  # B_ROTATE_SIMPLY
                   jr   NC, update_ctrls
 
@@ -1079,10 +1079,10 @@ class GDC
 
                   ld   hl, [dvar.pattx_control.value] # pattern_x shift as a fraction (-0.5)...(0.5)
                   ld   a, l       # normalize to match x
-            4.times do            # shhhhhhhllllllll -> ssssshhhhhhhhlll
+                4.times do        # shhhhhhhllllllll -> ssssshhhhhhhhlll
                   sra  h
                   rra
-            end
+                end
                   ld   l, a
                   ld   [dvar.x1], hl # pattern_x shift as a fraction (-0.5)...(0.5) normalized
   # render upper half
@@ -1347,7 +1347,9 @@ class GDC
                   ld   h, pattern_buf >> 8 # pattern hi
                   ld   d, 0b11111000 # attr mask
                   anda 0b00000111    # crop to ink color
-                  ld   c, a          # ink color
+                  jr   NZ, not_black
+                  ld   a, 7
+    not_black     ld   c, a          # ink color
                   ld   b, 16         # counter
                   ld   e, 15         # next line increment - 1
                   res  0, l          # only even columns
@@ -1445,6 +1447,11 @@ class GDC
                   ld   e, l
                   ld   a, [de]
                   jp   extra_hide.hide_color
+  end
+
+  ns :extra_swap_hide2 do
+                  call extra_swap_hide
+                  jp   extra_swap_hide
   end
 
   # clear ink color
@@ -1584,7 +1591,7 @@ class GDC
                   anda 0b00000110
                   ora  0b00000100
                   ld   c, a # a color
-    set_buf_a     ld   de, pattern_buf | 0x90
+    set_buf_a     ld   de, pattern_buf | 0x10
                   # render text
     cloop         ld   a, [hl]
                   inc  l
@@ -1609,7 +1616,7 @@ class GDC
                   jr   NC, copy_color
                   jr   NZ, put_color
     exit_bloop    ld   a, e
-                  cp   0x90 + 0x60
+                  cp   0x10 + 0x60
                   jr   C, cloop
                   # swap buffer
                   ld   a, d
@@ -1655,7 +1662,7 @@ class GDC
                   ld   c, 0x80
                   call move_towards
                   ld   hl, dvar.patty_control.vhi
-                  ld   c, 0xC0
+                  ld   c, 0x40
     move_towards  ld   a, [hl]
                   cp   c
                   ret  Z
@@ -2107,7 +2114,7 @@ class GDC
   # 0xF8: backspace
   # 0x01..0x1f: wait this many frames * 8
   # 0xFF: clear ink screen
-  intro_text    data "\x08\x92\x82G D C\x04\x82\xA0presents"#\x1F\xFF\xF3\x85\x4FM O V.E N T\x04"
+  intro_text    data "\x08\x92\x82G D C\x04\x82\xA0presents"
                 db 0
   title_text    data "\xF6\x87\x4FY A R T Z"
                 db 0
