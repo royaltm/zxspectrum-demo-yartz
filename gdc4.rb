@@ -11,13 +11,14 @@ require 'zxlib/basic'
 require 'utils/zx7'
 require 'utils/shuffle'
 require 'utils/sincos'
-# require 'gdc/bfont'
 require 'utils/bigfont'
 require_relative 'music6'
 
 class GDC
   include Z80
   include Z80::TAP
+
+  VERSION = "2019.04.06"
 
   # this controls rendering mode
   # may be one of:
@@ -2119,7 +2120,7 @@ class GDC
   title_text    data "\xF6\x87\x4FY A R T Z"
                 db 0
   scroll_text   db '*** SPECCY.PL PARTY 2019.04.06 ***', 0
-  greetz_text   data "\xF1\x81\x18Greetings:\x92\x30\x04Fred\x92\x40\x04Grych\x92\x50\x04KYA\x92\x60\x04M0nster\x92\x70\x04Tygrys\x92\x80\x04Voyager\x92\x90\x04Woola-T"
+  greetz_text   data "\x1F\xF1\x81\x18Greetings:\x92\x30\x08Fred\x92\x40\x05Grych\x92\x50\x05KYA\x92\x60\x05M0nster\x92\x70\x05Tygrys\x92\x80\x05Voyager\x92\x90\x05Woola-T"
                 db 0
                 data "\xFF\xF4\x83\x90from r-type"
                 db 0
@@ -2393,13 +2394,14 @@ puts "COMPRESSED SEPARATELY:\t#{code_compressed.bytesize + music_compressed.byte
 
 # Z80::TAP.read_chunk('gdc/loader_gdc_screen.tap').save_tap 'gdc.tap'
 program = Basic.parse_source <<-END
+   0 REM Yet Another RoTo Zoomer by r-type of GDC
    1 RANDOMIZE : RANDOMIZE USR #{Program::GDC.org}
 9998 STOP
 9999 CLEAR #{bootstrap.org-1}: LOAD ""CODE : RANDOMIZE USR #{bootstrap[:start]}
 END
 puts program.to_source escape_keywords:true
-program.save_tap 'yartz', name: 'Y.A.R.T.Z.', line: 9999
-bootstrap.save_tap 'yartz', name: 'y.a.r.t.z.', append: true
+program.save_tap 'yartz', name: 'Y A R T Z', line: 9999
+bootstrap.save_tap 'yartz', name: 'y a r t z', append: true
 
 Z80::TAP.parse_file('yartz.tap') do |hb|
     puts hb.to_s
