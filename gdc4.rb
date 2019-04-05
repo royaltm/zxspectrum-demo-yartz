@@ -1589,8 +1589,8 @@ class GDC
                   inc  [hl]
                   ld   a, [hl]
                   inc  hl
-                  anda 0b00000110
-                  ora  0b00000100
+                  anda 0b00000101
+                  ora  0b00000001
                   ld   c, a # a color
     set_buf_a     ld   de, pattern_buf | 0x10
                   # render text
@@ -2394,8 +2394,8 @@ puts "COMPRESSED SEPARATELY:\t#{code_compressed.bytesize + music_compressed.byte
 
 # Z80::TAP.read_chunk('gdc/loader_gdc_screen.tap').save_tap 'gdc.tap'
 program = Basic.parse_source <<-END
-   0 REM Yet Another RoTo Zoomer by r-type of GDC
-   1 RANDOMIZE : RANDOMIZE USR #{Program::GDC.org}
+   0 REM Yet Another RoToZoomer by r-type/GDC
+   1 RANDOMIZE USR #{Program::GDC.org}
 9998 STOP
 9999 CLEAR #{bootstrap.org-1}: LOAD ""CODE : RANDOMIZE USR #{bootstrap[:start]}
 END
