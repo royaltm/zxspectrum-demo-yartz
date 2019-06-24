@@ -1,6 +1,6 @@
 require 'z80'
-require 'utils/ay_music/music_box'
-require 'utils/ay_music'
+require 'zxutils/ay_music/music_box'
+require 'zxutils/ay_music'
 
 class Music
   include Z80
@@ -40,7 +40,8 @@ class Music
 
   export :noauto
 
-  AY_MUSIC_OVERRIDE = { instrument_table: instrument_table, notes: notes,
+  AY_MUSIC_OVERRIDE = { io128: io128,
+                        instrument_table: instrument_table, notes: notes,
                         note_to_cursor: note_to_cursor, fine_tones: fine_tones,
                         track_stack_end: track_stack_end,
                         empty_instrument: empty_instrument,
@@ -48,7 +49,7 @@ class Music
 
   start               label
 
-  ns :init, use: :io128 do
+  ns :init do
     ns :extend_notes do
                       ay_extend_notes(music.notes, octaves:8, save_sp:true, disable_intr:false, enable_intr:false)
     end
@@ -63,7 +64,7 @@ class Music
                       ret
   end
 
-  ns :mute, use: :io128 do
+  ns :mute do
                       ay_init
                       ret
   end
@@ -123,13 +124,6 @@ class Music
                       env_vol_progress_1,
                       instr_progress1,
                     )
-
-  # $random = Random.new 1
-
-  # $chord_note = ->(*notes) do
-  #   notes[$random.rand notes.length]
-  # end
-
 # https://www.youtube.com/watch?v=SO7iYa94N-M Debussy: Mouvement (L.110/3)
   music_track :track_a_part1_6 do
     m1; n0; mt 0; mn 0; ce 0; i :instr1_quiet
@@ -1191,8 +1185,9 @@ end
 
 if __FILE__ == $0
 
-  require 'utils/zx7'
+  require 'zxutils/zx7'
   require 'zxlib/basic'
+  require 'zxlib/emu'
 
   class MusicTest
     include Z80
@@ -1200,12 +1195,12 @@ if __FILE__ == $0
 
     import              ZXSys, macros: true, code: false
     macro_import        AYSound
+    macro_import        AYMusic
     macro_import        Z80SinCos
 
     sincos              addr 0xF500, AYMusic::SinCos
 
-
-    with_saved :demo, :exx, hl, ret: true, use: [:io128, :io] do
+    with_saved :demo, :exx, hl, ret: true do
                         di
                         call make_sincos
                         call music.init
@@ -1213,8 +1208,9 @@ if __FILE__ == $0
                         halt
                         di
                         push iy
-                        xor  a
+                        ld   a, 1
                         out  (io.ula), a
+                        ay_preserve_io_ports_state(music.music_control, music.play, bc_const_loaded:false)
                         call music.play
                         ld   a, 6
                         out  (io.ula), a
@@ -1225,7 +1221,7 @@ if __FILE__ == $0
                         ei
     end
 
-    import            Music, :music, override: {'music.sincos': sincos}
+    import            Music, :music, override: {'music.sincos': sincos, io128: io128 }
     music_end         label
                       words 7*12
 
@@ -1235,8 +1231,11 @@ if __FILE__ == $0
     sincos_end        label
   end
 
-  music = MusicTest.new 0x8000
-  # puts music.debug
+  io_ay = ZXSys.io128
+  # io_ay = ZXSys.fuller_io
+  # io_ay = ZXSys.ioT2k
+  music = MusicTest.new 0x8000, override: { io128: io_ay }
+  puts music.debug
   puts "music size: #{music[:music_end] - music[:music]}"
   puts "TRACK_STACK_TOTAL: #{AYMusic::TRACK_STACK_TOTAL}"
   puts "TRACK_STACK_SIZE : #{AYMusic::TRACK_STACK_SIZE}"
@@ -1244,6 +1243,7 @@ if __FILE__ == $0
   %w[
     +music.init.extend_notes +music.init.tone_progress_table_factory +music.init.note_to_fine_tone_cursor_table_factory
     music.instrument_table
+    music.music.notes
     music.notes
     music.ministack
     sincos
@@ -1271,8 +1271,11 @@ if __FILE__ == $0
   puts program.to_source escape_keywords: true
   program.save_tap "music", line: 9999
   music.save_tap "music", append: true
+
   puts "TAP: music.tap:"
   Z80::TAP.parse_file('music.tap') do |hb|
       puts hb.to_s
   end
+
+  ZXEmu.run "music.tap"
 end

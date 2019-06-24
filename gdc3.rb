@@ -1,18 +1,15 @@
 # -*- coding: BINARY -*-
-here = File.expand_path('../..', __dir__)
-$:.unshift(here) unless $:.include?(here)
-
 require 'z80'
 require 'z80/math_i'
 require 'z80/stdlib'
 require 'zxlib/gfx'
 require 'zxlib/sys'
 require 'zxlib/basic'
-require 'utils/zx7'
-require 'utils/shuffle'
-require 'utils/sincos'
+require 'zxutils/zx7'
+require 'z80/utils/shuffle'
+require 'z80/utils/sincos'
 # require 'gdc/bfont'
-require 'utils/bigfont'
+require 'zxutils/bigfont'
 
 class GDC
   include Z80

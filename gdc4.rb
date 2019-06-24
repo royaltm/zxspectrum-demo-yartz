@@ -1,17 +1,15 @@
 # -*- coding: BINARY -*-
-here = File.expand_path('../..', __dir__)
-$:.unshift(here) unless $:.include?(here)
-
 require 'z80'
 require 'z80/math_i'
 require 'z80/stdlib'
 require 'zxlib/gfx'
 require 'zxlib/sys'
 require 'zxlib/basic'
-require 'utils/zx7'
-require 'utils/shuffle'
-require 'utils/sincos'
-require 'utils/bigfont'
+require 'zxutils/zx7'
+require 'z80/utils/shuffle'
+require 'z80/utils/sincos'
+require 'zxutils/bigfont'
+require 'zxlib/emu'
 require_relative 'music6'
 
 class GDC
@@ -29,6 +27,7 @@ class GDC
   #
   FULL_SCREEN_MODE = false
 
+  # rotate_flags bit constants
   B_ROTATE_SIMPLY = 0 # if set simple rotator is enabled
   B_ENABLE_ZOOM   = 1 # if set simple rotator also simple zooms back and forth
   B_RND_PATTERN   = 1 # if B_ROTATE_SIMPLY is unset and this is set, the advanced control moves the pattern around
@@ -1416,6 +1415,9 @@ class GDC
     directions    db -1, 1, -16, 16
   end
 
+  ns :extra_hide2 do
+                  call extra_hide
+  end
   # hide ink
   ns :extra_hide do
                   call x_shuffle
@@ -1432,11 +1434,9 @@ class GDC
                   ret
   end
 
-  ns :extra_hide2 do
-                  call extra_hide
-                  jp   extra_hide
+  ns :extra_swap_hide2 do
+                  call extra_swap_hide
   end
-
   # swap pattern and hide ink
   ns :extra_swap_hide do
                   call x_shuffle
@@ -1448,11 +1448,6 @@ class GDC
                   ld   e, l
                   ld   a, [de]
                   jp   extra_hide.hide_color
-  end
-
-  ns :extra_swap_hide2 do
-                  call extra_swap_hide
-                  jp   extra_swap_hide
   end
 
   # clear ink color
@@ -1472,6 +1467,9 @@ class GDC
                   ret
   end
 
+  ns :extra_swap2 do
+                  call extra_swap
+  end
   # swap pattern's paper color
   ns :extra_swap do
                   call x_shuffle
@@ -1485,11 +1483,9 @@ class GDC
                   jp   extra_show.mix_fg_color
   end
 
-  ns :extra_swap2 do
-                  call extra_swap
-                  jp   extra_swap
+  ns :extra_destroy2 do
+                  call extra_destroy
   end
-
   # destroy pattern to bgcolor
   ns :extra_destroy do
                   call x_shuffle
@@ -1498,11 +1494,6 @@ class GDC
                   push de
     apply         ld   a, [dvar.bgcolor]
                   jp   extra_show.mix_fg_color
-  end
-
-  ns :extra_destroy2 do
-                  call extra_destroy
-                  jp   extra_destroy
   end
 
   # ns :extra_wave do
@@ -2299,7 +2290,11 @@ class Program
 
   GDC_SEED = 422 # 12347, 288, 640, 65535, 7777, 351, 9291, 6798, 4422, 1742
 
-  GDC = ::GDC.new 48000
+  io_ay = ZXSys.io128
+  # io_ay = ZXSys.fuller_io
+  # io_ay = ZXSys.ioT2k
+
+  GDC = ::GDC.new 48000, override: { 'music.io128': io_ay }
 
   export start
 
@@ -2405,3 +2400,5 @@ bootstrap.save_tap 'yartz', name: 'y a r t z', append: true
 Z80::TAP.parse_file('yartz.tap') do |hb|
     puts hb.to_s
 end
+
+ZXEmu.run 'yartz.tap'

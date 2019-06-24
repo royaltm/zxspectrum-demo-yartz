@@ -1,6 +1,6 @@
 require 'z80'
-require 'utils/ay_music/music_box'
-require 'utils/ay_music'
+require 'zxutils/ay_music/music_box'
+require 'zxutils/ay_music'
 
 class Music
   include Z80
