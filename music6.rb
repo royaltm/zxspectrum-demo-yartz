@@ -18,7 +18,7 @@ class Mouvement
   synchronize_channels a: 3...3, b: 1...1, c: 2...2
 
   ch_a do
-    rpt(32) { p 32, 32, 32 }
+    32.times { p 32, 32, 32 }
   end
 
   ch_b do
@@ -1213,6 +1213,7 @@ class Mouvement
   end
 end # Mouvement
 
+
 if __FILE__ == $0
   require 'z80'
 
@@ -1233,8 +1234,9 @@ if __FILE__ == $0
       puts names.map {|name| "   - :#{name}" }
     end
   end
-  musmod.to_player_module.save_tap 'mouvement'
-  Z80::TAP.parse_file('mouvement.tap') do |hb|
+  name = music.class.name.downcase
+  musmod.to_player_module.save_tap name
+  Z80::TAP.parse_file("#{name}.tap") do |hb|
       puts hb.to_s
   end
 end

@@ -249,11 +249,12 @@ class GDC
                   call make_pattern6
                   call make_figurines
 
-                  ld   ix, identity
-                  ld   hl, patt_shuffle
                   xor  a   # ld   a, 256
                   ld   [dvar.shuffle_state], a
-                  call shuffle
+                  shuffle_bytes_source_max256 target:patt_shuffle, length:a do
+                    call next_rnd2
+                    ld   a, l
+                  end
 
                   ld   hl, ludek_anim1
                   ld   [dvar.anim_start], hl
@@ -645,12 +646,16 @@ class GDC
                   exx
                   ld   bc, [vars.seed]
                   ret
+  end # :start
 
-  end
+  ###############
+  # Subroutines #
+  ###############
 
   ns :wait_for_next do
     wloop       halt
-    extra       call just_wait
+    extra_a     call just_wait
+    extra_p     extra_a + 1
                 # call rom.break_key
                 # jr   NC, start.demo_exit
                 ld   hl, dvar.rotate_flags
@@ -660,7 +665,7 @@ class GDC
                 ret
     set_delay   ld   [dvar.general_delay], a
     reset       ld   hl, just_wait
-    set_extra   ld   [extra + 1], hl
+    set_extra   ld   [extra_p], hl
                 jr   wloop
     just_wait   ld   hl, dvar.general_delay
                 dec  [hl]
@@ -669,12 +674,8 @@ class GDC
                 ret
   end
 
-  ###############
-  # Subroutines #
-  ###############
-
   # create pixel pattern alternating ~ register A each line
-  ns :alt_clear_scr, use: mem do
+  ns :alt_clear_scr do
                 ld   hl, mem.screen
                 ld   c, 24
     cloop       ld   b, 256
@@ -692,12 +693,12 @@ class GDC
   clear_screen  clrmem  mem.attrs, mem.attrlen, a
   set_border_cr anda 0b00111000
                 3.times { rrca }
-                out  (254), a
+                out  (io.ula), a
                 call clearscr
                 ret
 
   # clear pixel screen
-  ns :clearscr, use: mem do
+  ns :clearscr do
                 clrmem  mem.screen, mem.scrlen, 0
                 ret
   end
@@ -721,32 +722,7 @@ class GDC
   # create full sin/cos table from minimal sintable
   make_sincos   create_sincos_from_sintable sincos, sintable:sintable
 
-  # create shuffled array
-  shuffle       shuffle_bytes_source_max256 next_rnd2, target:hl, length:a, source:forward_ix
-                ret
-
   forward_ix    jp   (ix)
-
-  # |a| (a & 7) | ((a & 0b111000) << 2)
-  # mangle_line   ld   c, a
-  #               anda 0b00111000
-  #               2.times { add  a }
-  #               ld   b, a
-  #               ld   a, c
-  #               anda 0b00000111
-  #               ora  b
-  #               ret
-
-  # lines_even    ld   a, c
-  #               add  a
-  #               jr   mangle_line
-  # lines_odd     ld   a, c
-  #               scf
-  #               adc  a
-  #               jr   mangle_line
-
-  identity      ld   a, c
-                ret
 
   x_shuffle     ld   hl, dvar.shuffle_state
                 inc  [hl]
@@ -1225,7 +1201,7 @@ class GDC
                   ld   [hl], a
                   anda 0b11100000
                   3.times { rlca }
-    set_fg_clrbrd out (254), a
+    set_fg_clrbrd out (io.ula), a
                   ld   c, a
                   3.times { rlca }
                   ora  c

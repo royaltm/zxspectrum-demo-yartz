@@ -8,7 +8,6 @@ require 'zxlib/basic'
 require 'zxutils/zx7'
 require 'z80/utils/shuffle'
 require 'z80/utils/sincos'
-# require 'gdc/bfont'
 require 'zxutils/bigfont'
 
 class GDC
@@ -40,13 +39,12 @@ class GDC
   ###########
 
   import        ZXSys, labels: true, macros: true, code: false
-  macro_import  Z80Lib
-  macro_import  Z80MathInt
-  macro_import  Z80SinCos
-  macro_import  Z80Shuffle
-  macro_import  ZXGfx
-  # macro_import  ZX7
-  macro_import  BigFont
+  macro_import  Stdlib
+  macro_import  MathInt
+  macro_import  Utils::SinCos
+  macro_import  Utils::Shuffle
+  macro_import  ZXLib::Gfx
+  macro_import  ZXUtils::BigFont
 
   ###########
   # Structs #
@@ -491,8 +489,13 @@ class GDC
   make_sincos   create_sincos_from_sintable sincos, sintable:sintable
 
   # create shuffled array
-  shuffle       shuffle_bytes_source_max256 next_rnd, target:hl, length:a, source:forward_ix
+  ns :shuffle   do
+                shuffle_bytes_source_max256 target:hl, length:a, source:forward_ix do
+                  call next_rnd
+                  ld   a, l
+                end
                 ret
+  end
 
   forward_ix    jp   (ix)
 
@@ -1628,7 +1631,7 @@ class Program
   include Z80
   include Z80::TAP
 
-  MUSIC_NAME = File.join(__dir__, 'music4.tap')
+  MUSIC_NAME = File.join(__dir__, 'music_floppys.tap')
   MUSIC_TAP = Z80::TAP.parse_file(MUSIC_NAME)
 
   GDC_SEED = 9998 # 9998, 1110, 2408, 42420, 42423, 42422, 1952, 4266, 32768, 1647, 47, 69, 310, 1906, 12345, 10101, 2357, 100, 200, 2334, 1508, 2765, 156, 7777, 31744
@@ -1665,6 +1668,8 @@ class Program
   music_zx7     data ZX7.compress(MUSIC.body.data)
   end_of_data   label
 end
+
+include ZXLib
 
 gdc = Program::GDC
 puts gdc.debug
