@@ -9,14 +9,13 @@ require 'zxutils/zx7'
 require 'z80/utils/shuffle'
 require 'z80/utils/sincos'
 require 'zxutils/bigfont'
-require 'zxlib/emu'
-require_relative 'music6'
+require_relative 'music'
 
 class GDC
   include Z80
   include Z80::TAP
 
-  VERSION = "2019.04.06"
+  VERSION = '1.0.1'.freeze
 
   # this controls rendering mode
   # may be one of:
@@ -43,13 +42,13 @@ class GDC
   # Imports #
   ###########
 
-  import        ZXSys, labels: true, macros: true, code: false
-  macro_import  Z80Lib
-  macro_import  Z80MathInt
-  macro_import  Z80SinCos
-  macro_import  Z80Shuffle
-  macro_import  ZXGfx
-  macro_import  BigFont
+  import        ZXLib::Sys, labels: true, macros: true, code: false
+  macro_import  Stdlib
+  macro_import  MathInt
+  macro_import  Utils::SinCos
+  macro_import  Utils::Shuffle
+  macro_import  ZXLib::Gfx
+  macro_import  ZXUtils::BigFont
 
   ###########
   # Structs #
@@ -568,7 +567,7 @@ class GDC
                   ld   [dvar.pattx_control.vlo], a
                   ld   [dvar.patty_control.vlo], a
 
-                  memcpy pattern_ani1, pattern_buf, 256*3
+                  memcpy pattern_ani1, pattern_buf, 256*3, reverse: false
                   ld   hl, dvar.scroll_ctrl.bits
                   ld   [hl], 24
                   ld   hl, scroll_text
@@ -2284,6 +2283,8 @@ class GDC
   import        Music, :music, override: {'music.sincos': sincos}
 end
 
+include ZXLib
+
 class Program
   include Z80
   include Z80::TAP
@@ -2371,7 +2372,9 @@ pattern_ani6
 mini_stk_end intr_stk_end
 sincos patt_shuffle pattern_buf
 music music.init music.play music.mute music.music music.music.play
-music.instrument_table music.notes music.ministack music.note_to_cursor music.fine_tones
+music.track_a music.track_b music.track_c music.index_table
+music.song +music.song music.song_end
+music.notes music.ministack music.note_to_cursor music.fine_tones
 music.track_stack_end music.empty_instrument
 music.music_control.counter
 music.music_control +music.music_control
@@ -2400,5 +2403,3 @@ bootstrap.save_tap 'yartz', name: 'y a r t z', append: true
 Z80::TAP.parse_file('yartz.tap') do |hb|
     puts hb.to_s
 end
-
-ZXEmu.run 'yartz.tap'
