@@ -17,8 +17,8 @@ class GDC
 
   VERSION = '1.0.1'.freeze
 
-  # this controls rendering mode
-  # may be one of:
+  ##
+  # This constant controls rendering mode and may be one of:
   #
   # * false - renders from 0 to 22 attribute line
   # * true - renders full screen
@@ -42,11 +42,11 @@ class GDC
   # Imports #
   ###########
 
-  import        ZXLib::Sys, labels: true, macros: true, code: false
   macro_import  Stdlib
   macro_import  MathInt
   macro_import  Utils::SinCos
   macro_import  Utils::Shuffle
+  label_import  ZXLib::Sys, macros: true
   macro_import  ZXLib::Gfx
   macro_import  ZXUtils::BigFont
 
@@ -54,7 +54,7 @@ class GDC
   # Structs #
   ###########
 
-  # current iteration rendering data
+  # The rendering matrix of the current iteration
   class Rotator < Label
     dx2  word # delta x when moving down/up screen
     dx1  word # delta x when moving right/left screen
@@ -62,14 +62,14 @@ class GDC
     dy1  word # delta y when moving right/left screen
   end
 
-  # simple zoom/scale control data
+  # Control structure of the simple zoom & scale.
   class RotateState < Label
     angle byte    # only for simple rotating when B_ROTATE_SIMPLY is set
     scale byte    # only for simple zooming when B_ENABLE_ZOOM and B_ROTATE_SIMPLY is set
     state angle word # union as word
   end
 
-  # advanced random zoom/scale/pan control data
+  # Control structure of the advanced random zoom & scale & pan.
   class ValueControl < Label
     frms      byte     # frames counter (left to change target)
     tgt_incr  byte     # target  delta (unsigned)
@@ -79,12 +79,12 @@ class GDC
     value     vlo word # vlo+vhi union as word
   end
 
-  # color snake control data
+  # Control structure of the "snake" ("street") effect.
   class SnakeControl < Label
-    counter   byte
-    color     byte
+    counter   byte # length
+    color     byte # current color
     delta     byte # 1, -1, 16, -16
-    yx        byte
+    yx        byte # last row|col
   end
 
   # class WaveControl < Label
@@ -93,69 +93,69 @@ class GDC
   #   current   byte
   # end
 
+  # Control structure of the "scroll text" effect.
   class ScrollControl < Label
-    text_cursor word
-    color       byte
-    chars_temp  byte, 6*2
-    bits        byte
-    char_data   byte, 6
+    text_cursor word      # current pointer to the text
+    color       byte      # last paint color
+    bits_view   byte, 2*6 # 16x8 pixel bit view of the scroll (bits being painted onto pattern cells)
+    bits        byte      # counter of bits to shift: 0..8
+    char_data   byte, 6   # a copy of the next text character shape being scrolled into bits_view
   end
 
+  # Control structure of the "spectrum analyzer" effect.
   class SpectrumControl < Label
-    margin0   byte
-    margin1   byte
-    data      byte, 16
-    margin2   byte
-    margin3   byte
+    margin0   byte     # polluted space by the updating process
+    margin1   byte     # polluted space by the updating process
+    data      byte, 16 # 16 data points
+    margin2   byte     # polluted space by the updating process
+    margin3   byte     # polluted space by the updating process
   end
 
-  # all demo variables
+  # The variables
   class DemoVars < Label
     pattern_lo      byte
     pattern_hi      byte
-    pattern         pattern_lo word # current pattern in the process of randomized swap
-    fgcolor         byte            # pixel grid current fg color on the 3 most significant bits
-    bgcolor         byte            # pixel grid current bg color on the paper bits (3-5), used by extra_destroy
-    at_position     ZXSys::Cursor   # text cursor
-    general_delay   byte            # some delay counter
-    # logo_current    byte            # logo shuffle cursor
-    # logo_mask       byte            # current logo show/clear mask
+    pattern         pattern_lo word # target pattern address in the process of replacing the current one
+    fgcolor         byte            # pixel grid's current fg color on the 3 most significant bits
+    bgcolor         byte            # pixel grid's current bg color on the paper bits (3-5), used by extra_destroy
+    at_position     ZXSys::Cursor   # text screen cursor
+    general_delay   byte            # general purpose delay counter
     text_delay      byte            # text delay counter
-    text_cursor     word            # pointer to text
+    text_cursor     word            # pointer to the next character to print
     colors_delay    byte            # colors delay counter
-    shuffle_state   byte            # current shuffle cursor
+    shuffle_state   byte            # current shuffle index
     rotate_flags    byte            # rotation control with B_* flags
     scale_control   ValueControl    # advanced scale control
     angle_control   ValueControl    # advanced angle control
     pattx_control   ValueControl    # advanced pan x control
     patty_control   ValueControl    # advanced pan y control
-    snake_control   SnakeControl    # color snake control
-    rotate_state    RotateState     # simple scale/angle control
-    rotator         Rotator, 2      # 2 rotators: 1st for left to right and 2nd right to left
+    snake_control   SnakeControl    # snake control
+    rotate_state    RotateState     # simple zoom & scale control
+    rotator         Rotator, 2      # 2 rotator matrixes: 1st for left to right and 2nd for right to left
     x1              word            # normalized pan x shift for current iteration
     move_x          word            # simple move delta x
     move_y          word            # simple move delta y
     rotate_delay    byte            # a delay for rotate delta
     rotate_delta    byte            # simple rotate delta
-    pattern_bufh    byte            # address (MSB) of the currently rendered buffer
+    pattern_bufh    byte            # address (MSB) of the currently rendered pattern
     anim_wait       byte            # animation slowdown counter
     anim_frames     word            # current animation frames address; no animation if 0
     anim_start      word            # restart animation frames address
-    seed1           word            # 1st seed for rnd rotate control
-    seed2           word            # 2nd seed for extra tasks' rnd
+    seed1           word            # 1st seed for the advanced random rotation control
+    seed2           word            # 2nd seed for extra tasks' randomizer
     counter_sync_lo byte            # music counter target (LSB)
     counter_sync_hi byte            # music counter target (MSB)
     counter_sync    counter_sync_lo word
-    scroll_ctrl     ScrollControl   # scroll data
-    spectrum        SpectrumControl # analyzer data
+    scroll_ctrl     ScrollControl   # scroll text control
+    spectrum        SpectrumControl # spectrum analyzer control
     # chan_a          WaveControl
     # chan_b          WaveControl
     # chan_c          WaveControl
   end
 
-  ########
-  # Vars #
-  ########
+  ##########
+  # Layout #
+  ##########
 
   sincos        addr 0xE700, Z80SinCos::SinCos
   pattern1      addr sincos[256]
@@ -166,16 +166,16 @@ class GDC
 
   dvar          addr 0xF000, DemoVars
   dvar_end      addr :next, 0
-  pattern_buf   addr 0xF800                 # current pattern data
-  pattern_ani1  addr 0xF900                 # animation pattern data
-  pattern_ani2  addr 0xFA00                 # animation pattern data
-  pattern_ani3  addr 0xFB00                 # animation pattern data
-  pattern_ani4  addr 0xFC00                 # animation pattern data
-  pattern_ani5  addr 0xFD00                 # animation pattern data
-  pattern_ani6  addr 0xFE00                 # animation pattern data
-  patt_shuffle  addr pattern_buf[-256]      # pattern shuffle index
-  mini_stk_end  addr patt_shuffle[0], 2     # stack for main program
-  intr_stk_end  addr mini_stk_end[-128], 2  # stack for interrupt handler
+  intr_stk_end  addr 0xF600, 2
+  mini_stk_end  addr intr_stk_end[128], 2
+  patt_shuffle  addr mini_stk_end[0]
+  pattern_buf   addr patt_shuffle[256]      # current pattern data
+  pattern_ani1  addr pattern_buf[256]       # animation pattern data
+  pattern_ani2  addr pattern_ani1[256]      # animation pattern data
+  pattern_ani3  addr pattern_ani2[256]      # animation pattern data
+  pattern_ani4  addr pattern_ani3[256]      # animation pattern data
+  pattern_ani5  addr pattern_ani4[256]      # animation pattern data
+  pattern_ani6  addr pattern_ani5[256]      # animation pattern data
   # wave_control  addr 0, WaveControl
 
   ##########
@@ -183,11 +183,11 @@ class GDC
   ##########
 
   ##
-  # main attribute renderer piece of the puzzle
+  # The attribute pattern matrix renderer
   #
-  # hl - normalized current x:  ssssxxxx.xxxxxxxx
+  # hl - normalized current x:  ssssxxxx. xxxxxxxx
   # de - normalized dx                  ^ fraction point
-  # hl' - normalized current y: yyyy.yyyyyyyyyyyy (y-axix has more precision bits)
+  # hl' - normalized current y: yyyy.yyyy yyyyyyyy (y-axix has more precision bits)
   # de' - normalized dy             ^ fraction point
   # bc - current screen attributes address
   # b' - current pattern hi byte address
@@ -219,7 +219,7 @@ class GDC
   # MAIN #
   ########
 
-  ns :start, use: :dvar do
+  ns :start do
                   exx
                   push hl                   # save hl'
 
@@ -652,6 +652,7 @@ class GDC
   # Subroutines #
   ###############
 
+  # Do some *extra* effect work (if possibly) each frame and return when the effect is over.
   ns :wait_for_next do
     wloop       halt
     extra_a     call just_wait
@@ -663,18 +664,23 @@ class GDC
                 jr   Z, wloop
                 res  B_EFFECT_OVER, [hl]
                 ret
+    # Wait for the number of frames given in accumulator.
     set_delay   ld   [dvar.general_delay], a
+    # Sets up the just_wait as an extra task and waits.
     reset       ld   hl, just_wait
+    # Sets up an extra task to the address given in +hl+ and waits until the effect is over.
     set_extra   ld   [extra_p], hl
                 jr   wloop
-    just_wait   ld   hl, dvar.general_delay
-                dec  [hl]
-                ret  NZ
-                pop  af
-                ret
   end
 
-  # create pixel pattern alternating ~ register A each line
+  # The simplest *extra* task: just waits general_delay iterations.
+  just_wait   ld   hl, dvar.general_delay
+              dec  [hl]
+              ret  NZ
+              pop  af
+              ret
+
+  # Creates a grid pattern on the pixel screen alternating ~ accumulator each line.
   ns :alt_clear_scr do
                 ld   hl, mem.screen
                 ld   c, 24
@@ -689,7 +695,7 @@ class GDC
                 ret
   end
 
-  # clears screen area with border and attributes set according to register a
+  # Sets the screen attributes to the value given in accumulator and border to paper bits and clears all the pixels.
   clear_screen  clrmem  mem.attrs, mem.attrlen, a
   set_border_cr anda 0b00111000
                 3.times { rrca }
@@ -697,66 +703,61 @@ class GDC
                 call clearscr
                 ret
 
-  # clear pixel screen
+  # Clears the pixel screen.
   ns :clearscr do
                 clrmem  mem.screen, mem.scrlen, 0
                 ret
   end
 
-  # next random number from math_i library
+  # Returns the next random number in +hl+ from the seed given in +hl+.
   next_rnd      rnd
                 ret
 
-  # entry point for extra task
+  # Returns the next random number in +hl+ from the seed found in +dvar.seed2+. Updates +dvar.seed2+.
   next_rnd2     ld  hl, [dvar.seed2]
                 call next_rnd
                 ld  [dvar.seed2], hl
                 ret
 
-  # Parameters:
-  #   HL: source address (compressed data)
-  #   DE: destination address (decompressing)
-  # -----------------------------------------------------------------------------
-  # decompress    dzx7_standard
-
-  # create full sin/cos table from minimal sintable
+  # Creates the full sin/cos table from the minimal sinus table base.
   make_sincos   create_sincos_from_sintable sincos, sintable:sintable
 
+  # Forward to +ix+. Call it to emulate: +call ix+.
   forward_ix    jp   (ix)
 
+  # Returns the next random (pre-shuffled) pattern_buf cell address.
+  # Sets ZF:1 when the shuffle cycle ends (all cells has been visited).
   x_shuffle     ld   hl, dvar.shuffle_state
                 inc  [hl]
                 ld   l, [hl]
                 ld   h, patt_shuffle >> 8
-                ld   l, [hl] # index 
-                ld   h, pattern_buf >> 8 # pattern address
+                ld   l, [hl]             # pattern index: $00-$FF
+                ld   h, pattern_buf >> 8 # the full pattern address
                 ret
 
-  # Outputs 16x15 printable character.
+  # Outputs 16x15 anti-aliased character from the 8x8 font.
   #
   # a' - character to print
-  # d - a vertical row (0-191) to start printing at
-  # e - a byte column (0-31) to start printing at
+  # d - a vertical row (0-177) to start printing at
+  # e - a byte column (0-30) to start printing at
   print_big_chr ytoscr d, col:e, t:c
-                ld   c, 8             # 8 character lines
+                ld   c, 8             # 8 source character lines
                 exx                   # save screen address and height
                 ex   af, af           # restore code
+                                      # yep, you can customize font by changing CHARS
                 char_ptr_from_code([vars.chars], a, tt:de)
                 enlarge_char8_16 compact:false, over: :or, scraddr:nil, assume_chars_aligned:true
                 ret
 
-  #   frms      byte
-  #   tgt_incr  byte
-  #   cur_incr  byte
-  #   vhi       byte
-  #   vlo       byte
-  # hl: vc
+  # Updates the randomized zoom/scale/pan variables and returns the current value.
+  #
+  # hl: -> ValueControl to update
   # CF: mode - 0: delta+stable frames, 1: current only+random frames
   # preserves: af
   # out: de if delta, a' if current
   ns :control_value do
-                  ex   af, af # save mode
-                  dec  [hl]   # frms
+                  ex   af, af  # save mode
+                  dec  [hl]    # frms
                   jr   Z, change_target
                   inc  l
                   ld   c, [hl] # tgt_incr
@@ -793,7 +794,7 @@ class GDC
                   dec  l
                   ld   [hl], e # vlo
                   ex   af, af
-                  ret  # updated value in de
+                  ret          # updated value in de
 
     change_target push hl
                   ld  hl, [dvar.seed1]
@@ -812,23 +813,21 @@ class GDC
                   jp   continue
   end
 
-  # x1:  (256*(-(a/16.0)-(dx1 * xs) - (dx2 * ys))).truncate,
-  # y1:  (256*16*(8-(dy1 * xs) - (dy2 * ys))).truncate,
-  # dx1: (scale*Math.cos(angle) * 256).truncate,
-  # dy1: (scale*Math.sin(angle) * 256 * 16).truncate,
-  # dx2: (scale*-Math.sin(angle) * 256).truncate,
-  # dy2: (scale*Math.cos(angle) * 256 * 16).truncate
+  ###############
+  # Render task #
+  ###############
 
   with_saved :rotate_int, :all_but_ixiy, :exx, :ex_af, :all_but_ixiy, ret: :after_ei do
-                  ld   [save_sp + 1], sp
-            # ld   a, 1
-            # out  (254), a
-  # render lower half - current rotators:
-  #     [0]   [1]
-  #    dx2   dx2
-  #   -dx1   dx1
-  #    dy2   dy2
-  #   -dy1   dy1
+                  ld   [save_sp_p], sp
+                  # ld   a, 1; out  (254), a
+
+    # Renders the lower half of the screen from the center right and downwards and left and so on.
+    # Current rotation matrixes:
+    #     [0]   [1]
+    #    dx2   dx2
+    #   -dx1   dx1
+    #    dy2   dy2
+    #   -dy1   dy1
     if FULL_SCREEN_MODE == :center || !FULL_SCREEN_MODE
                   ld   a, 6
     else
@@ -876,13 +875,13 @@ class GDC
                   exx             # de': dy1, hl': y, de: dx1, hl: x, bc: attrs
                   ld   [bc], a    # set attr
 
-      15.times do
+    15.times do
                   render_attr dir: :right
-      end
+    end
     center_attr   render_attr dir: :right
-      15.times do
+    15.times do
                   render_attr dir: :right
-      end
+    end
                   inc  bc         # next line (begin of line)
                   ld   a, 31
                   add  c  
@@ -906,36 +905,39 @@ class GDC
                   ld   a, [bc]    # bc: pattern bbbbbbbb yyyyxxxx
                   exx             # de': dy1, hl': y, de: dx1, hl: x, bc: attrs
                   ld   [bc], a    # set attr
-      31.times do
+    31.times do
                   render_attr dir: :left
-      end
+    end
                   ex   af, af
                   dec  a          # lines -= 1
                   jp   NZ, tloop1 # tloop1 if lines != 0
 
-                  # ld   a, 5
-                  # out  (254), a
+    # The lower half is rendered, waste some time on music
+                  # ld   a, 5; out  (254), a
                   ld   sp, intr_stk_end
                   call music.play
+
+    # Forward animation if active
                   call animation
-                  # calculate new coords (rotate and so on)
+
+    # Now progress rotate, scale and panning.
                   ld   a, [dvar.rotate_flags]
                   # out  (254), a
                   rra  # B_ROTATE_SIMPLY
                   jr   NC, update_ctrls
-
-                  ld   hl, [dvar.move_x] # -683
+    # Simple panning x-wise
+                  ld   hl, [dvar.move_x]
                   ld   sp, dvar.pattx_control.value
                   pop  bc
                   add  hl, bc
                   push hl
-
+    # Simple panning y-wise
                   ld   hl, [dvar.move_y]
                   ld   sp, dvar.patty_control.value
                   pop  bc
                   add  hl, bc
                   push hl
-
+    # Simple rotating
                   # angle 0 - 255, scale 0-255 (1.0)
                   # c = angle (0..255), b = scale 0..7f
                   # prepare_rotator
@@ -950,7 +952,7 @@ class GDC
                   ld   c, a
                   ex   af, af
                   # dec  c  # rotate
-
+    # Simple zooming
     skip_rotate   rra  # B_ENABLE_ZOOM
                   sbc  a, a
                   add  b
@@ -964,19 +966,21 @@ class GDC
                   ld   b, a
                   jr   skip_rot_adj
 
+    # Advanced rotating, zooming and panning.
     update_ctrls  rra  # B_RND_PATTERN
                   jr   NC, skip_patt_ct
+    # Advanced panning
                   ld   hl, dvar.patty_control
                   ora  a             # CF = 0
                   call control_value
                   ld   hl, dvar.pattx_control
                   call control_value # CF = 0 preserved
-
+    # Advanced rotating
     skip_patt_ct  ld   hl, dvar.angle_control
                   ora  a             # CF = 0
                   call control_value
                   ld   a, d          # angle from vhi
-
+    # Advanced zooming
                   ld   hl, dvar.scale_control
                   scf                # CF = 1
                   call control_value
@@ -987,37 +991,45 @@ class GDC
                   cp   4             # scale >= 4 ? skip_rot_adj
                   jr   NC, skip_rot_adj
                   ld   b, 4          # scale = 4
-                                     # calculate: dx1, dy1, dx2, dy2, x1, y1
+
+    # Calculate:
+    #
+    # x1:  (256*(-(a/16.0)-(dx1 * xs) - (dx2 * ys))).truncate,
+    # y1:  (256*16*(8-(dy1 * xs) - (dy2 * ys))).truncate,
+    # dx1: (scale*Math.cos(angle) * 256).truncate,
+    # dy1: (scale*Math.sin(angle) * 256 * 16).truncate,
+    # dx2: (scale*-Math.sin(angle) * 256).truncate,
+    # dy2: (scale*Math.cos(angle) * 256 * 16).truncate
     skip_rot_adj  ld   a, c          # angle
                   sincos_from_angle sincos, h, l
-                  ld   sp, hl     # hl: address of SinCos entry from an angle in a (256 based)
-                  pop  de         # sin(angle)
-                  ld   a, b       # scale
+                  ld   sp, hl        # hl: address of SinCos entry from an angle in a (256 based)
+                  pop  de            # sin(angle)
+                  ld   a, b          # scale
                   mul8 d, e, a, tt:de, clrhl:true, double:false # sin(angle) * scale
-                  ld   a, b       # scale
-                  exx             # hl': sin(angle) * scale
-                  pop  de         # cos(angle)
+                  ld   a, b          # scale
+                  exx                # hl': sin(angle) * scale
+                  pop  de            # cos(angle)
                   mul8 d, e, a, tt:de, clrhl:true, double:false # cos(angle) * scale
-                                  # hl: cos(angle) * scale
-                  ld   a, l       # dx1: normalize cos(angle) * scale
+                                     # hl: cos(angle) * scale
+                  ld   a, l          # dx1: normalize cos(angle) * scale
                   ld   e, h
-                  add  a          # llllllll -> CF: l a: lllllll0
-                  rl   e          # shhhhhhh -> CF: s e: hhhhhhhl
-                  sbc  a          # a: ssssssss
-                  ld   d, a       # de: dx1 = sssssssshhhhhhhl
+                  add  a             # llllllll -> CF: l a: lllllll0
+                  rl   e             # shhhhhhh -> CF: s e: hhhhhhhl
+                  sbc  a             # a: ssssssss
+                  ld   d, a          # de: dx1 = sssssssshhhhhhhl
 
-                  ld   a, l       # dy2: normalize cos(angle) * scale
-                3.times do        # shhhhhhhllllllll -> sssshhhhhhhlllll
-                  sra h           # y axis has better angle resolution
-                  rra             # but it's only visible when extremally zoomed in
+                  ld   a, l          # dy2: normalize cos(angle) * scale
+                3.times do           # shhhhhhhllllllll -> sssshhhhhhhlllll
+                  sra h              # y axis has better angle resolution
+                  rra                # but it's only visible when extremally zoomed in
                 end
-                  ld   l, a       # hl: dy2 = sssshhhhhhhlllll
-  # set rotators:
-  #  [0]  [1]
-  # -dx2 -dx2
-  # -dx1  dx1 
-  # -dy2 -dy2
-  # -dy1  dy1 
+                  ld   l, a          # hl: dy2 = sssshhhhhhhlllll
+    # Set rotate matrixes:
+    #  [0]  [1]
+    # -dx2 -dx2
+    # -dx1  dx1 
+    # -dy2 -dy2
+    # -dy1  dy1 
                   exx             # hl: sin(angle) * scale
 
                   ld   a, l       # -dx2: normalize sin(angle) * scale
@@ -1030,7 +1042,7 @@ class GDC
                   ld   a, l       # dy1: normalize sin(angle) * scale
                 3.times do        # shhhhhhhllllllll -> sssshhhhhhhlllll
                   sra  h          # y axis has better angle resolution
-                  rra             # but it's only visible when extremally zoomed in
+                  rra             # but it's only visible when extremely zoomed in
                 end
                   ld   l, a       # hl: dy1 = sssshhhhhhhlllll
 
@@ -1051,7 +1063,7 @@ class GDC
                   exx
                   push de         # rotator[0].dx2 = -dx2
                   exx             # de: -dx1
-
+    # Calculate x1
                   ld   hl, [dvar.pattx_control.value] # pattern_x shift as a fraction (-0.5)...(0.5)
                   ld   a, l       # normalize to match x
                 4.times do        # shhhhhhhllllllll -> ssssshhhhhhhhlll
@@ -1059,10 +1071,12 @@ class GDC
                   rra
                 end
                   ld   l, a
+    # Save x1 for the next render iteration (lower half).
                   ld   [dvar.x1], hl # pattern_x shift as a fraction (-0.5)...(0.5) normalized
-  # render upper half
+
+    # Renders the upper half of the screen from the center left and upwards and right and so on.
                   ld   a, 6
-          # out  (254), a
+                  # out  (254), a
                   ex   af, af
     if FULL_SCREEN_MODE == :center
                   ld   bc, mem.attrs + 32*11 + 16 # center of attrs
@@ -1138,11 +1152,11 @@ class GDC
       15.times do
                   render_attr dir: :left
       end
-
                   ex   af, af
                   dec  a          # lines -= 1
                   jp   NZ, tloop2 # tloop2 if lines != 0
-  # prepare rotators for lower half on next interrupt:
+
+  # Prepare the rotation matrixes for the lower half on the next iteration:
   #  [0]  [1]     [0]  [1]
   # -dx2 -dx2 ->  dx2  dx2
   # -dx1  dx1 -> -dx1  dx1 
@@ -1158,18 +1172,23 @@ class GDC
                   push hl
                   ld   [dvar.rotator[0].dy2], hl
 
-    save_sp       ld   sp, 0      # set on top
-            # xor  a
-            # out  (254), a
+    save_sp_a     ld   sp, 0      # restore sp
+    save_sp_p     save_sp_a + 1
+                  # xor  a; out  (254), a
   end # ei; ret
 
+  ###########
+  # Effects #
+  ###########
+
+  # The "crazy spin" effect.
   ns :extra_spin do
                   ld   hl, dvar.rotate_delay
                   ld   a, 64
                   add  [hl]
                   ld   [hl], a
                   ret  NC
-                  inc  hl # rotate_delta
+                  inc  hl      # dvar.rotate_delta
                   dec  [hl]
                   ld   a, [hl]
                   cp   -65
@@ -1177,6 +1196,7 @@ class GDC
                   jr   signal_next
   end
 
+  # The "brake spin" effect.
   ns :extra_unspin do
                   ld   hl, dvar.rotate_delta
                   inc  [hl]
@@ -1186,60 +1206,64 @@ class GDC
                   jr   signal_next
   end
 
-  # toggle fg colors
+  # The "cycle ink and border colors to the rhythm" effect.
   ns :extra_colors do
                   ld   hl, dvar.fgcolor
-                  inc  [hl]
-                  jr   NZ, apply
+                  inc  [hl]             # increase color's fraction
+                  jr   NZ, apply        # 0 ? end of effect
                   ld   de, signal_next
-                  push de
-    apply         ld   a, [hl]
+                  push de               # exit via signal_next
+    apply         ld   a, [hl]          # dvar.fgcolor
                   anda 0b00011111
-                  ret  NZ
-                  ld   a, [hl]
-                  add  32-24
-                  ld   [hl], a
-                  anda 0b11100000
-                  3.times { rlca }
-    set_fg_clrbrd out (io.ula), a
+                  ret  NZ               # return unless color's fraction is 0
+                  ld   a, [hl]          # dvar.fgcolor
+                  add  32-24            # adjust fraction by 0.25
+                  ld   [hl], a          # dvar.fgcolor
+                  anda 0b11100000       # bits 5-7 are paper and border color
+                  3.times { rlca }      # color on ink bits 0-2
+    set_fg_clrbrd out (io.ula), a       # set border color
                   ld   c, a
                   3.times { rlca }
-                  ora  c
-    if FULL_SCREEN_MODE == :center
+                  ora  c                # a: paper bits 3-5 = ink bits 0-2
+                                        # optionally set the margin rows' attributes to match the border color
+    if FULL_SCREEN_MODE == :center      # upper and lower row
                   ld   hl, mem.attrs
-                  cp   [hl]
+                  cp   [hl]             # update only if different
                   jr   Z, set_fg_color
                   clrmem hl, 32, a
                   clrmem mem.attrs + mem.attrlen - 32, 32, a
-    elsif !FULL_SCREEN_MODE
+    elsif !FULL_SCREEN_MODE             # 2 bottom rows
                   ld   hl, mem.attrs + mem.attrlen - 64
-                  cp   [hl]
+                  cp   [hl]             # update only if different
                   jr   Z, set_fg_color
                   clrmem hl, 64, a
     end
 
+    # Sets ink color of all of the pattern_buf cells.
+    # Assumes all of the pattern cells has the same ink bits.
+    # a: ink bits 0-2
     set_fg_color  ld   hl, pattern_buf
-                  xor  [hl]
-                  anda 0b00000111
-                  ret  Z
-                  ld   b, 0
-                  ld   c, a
-    invloop       ld   a, [hl]
-                  xor  c
-                  ld   [hl], a
-                  inc  hl
+                  xor  [hl]             # diff bits
+                  anda 0b00000111       # check the ink bits only
+                  ret  Z                # return if no change needed
+                  ld   b, 256           # counter
+                  ld   c, a             # copy diff bits
+    invloop       ld   a, [hl]          # get the pattern cell
+                  xor  c                # apply diff bits
+                  ld   [hl], a          # set the pattern cell
+                  inc  l                # next cell
                   djnz invloop
                   ret
   end
 
+  # Sets signal "effect is over" for the wait_for_next routine.
   ns :signal_next do
                   ld   hl, dvar.rotate_flags
                   set  B_EFFECT_OVER, [hl]
-    # reset_extra   ld   hl, extra_wait
-    #               ld   [rotate_int.extra + 1], hl
                   ret
   end
 
+  # Signal the effect is over if the music counter reaches dvar.counter_sync
   ns :synchronize_music do
                   ld   de, music.music_control.counter_hi
                   ld   hl, dvar.counter_sync_hi
@@ -1253,222 +1277,237 @@ class GDC
                   cp   [hl]
                   ret  C
                   jp   signal_next
+
+    # Sets dvar.counter_sync and waits until music reaches the given counter.
+    # hl: a value to set counter_sync to
     set_hl        ld   [dvar.counter_sync], hl
                   ld   hl, synchronize_music
                   jp   wait_for_next.set_extra
   end
 
-  # write text
+  # The "write text" effect.
   ns :extra_text do
                   ld   hl, dvar.text_delay
-                  dec  [hl]
-                  ret  NZ
-                  ld   [hl], 3
-                  ld   hl, [dvar.text_cursor]
-                  ld   de, [dvar.at_position]
-    next_char     ld   a, [hl]
-                  inc  hl
+                  dec  [hl]                         # decrease effect's counter
+                  ret  NZ                           # delay printing
+                  ld   [hl], 3                      # dvar.text_delay = 3
+                  ld   hl, [dvar.text_cursor]       # character's address
+                  ld   de, [dvar.at_position]       # screen cursor position
+    next_char     ld   a, [hl]                      # a: text character
+                  inc  hl                           # next character's address
                   ora  a
-                  jp   M, check_control
-                  ld   [dvar.text_cursor], hl
-                  jr   Z, signal_next
+                  jp   M, check_control             # a >= 128 control character
+                  ld   [dvar.text_cursor], hl       # save the address of the next text character
+                  jr   Z, signal_next               # a == 0 ? all text written, effect is over
                   cp   32
-                  jr   C, handle_wait
-                  ex   af, af
-                  ld   a, e
-                  add  2
-                  ld   [dvar.at_position.column], a
-                  jp   print_big_chr
+                  jr   C, handle_wait               # a < 32 ? set delay
+                  ex   af, af                       # a': character to print
+                  ld   a, e                         # cursor column (0..30)
+                  add  2                            # increase by 2
+                  ld   [dvar.at_position.column], a # save cursor position
+                  jp   print_big_chr                # exit via print
     check_control cp   0xF0
-                  jr   C, handle_pos
-                  ld   [dvar.text_cursor], hl
-                  cp   0xFF
-                  jr   NZ, handle_other
-                  jp   clearscr
+                  jr   C, handle_pos                # a < 0xF0 ? move cursor
+                  ld   [dvar.text_cursor], hl       # save the address of the next text character
+                  cp   0xFF                         # a = 0xFF ? clear pixel screen
+                  jp   Z, clearscr                  # exit via clearscr
     handle_other  cp   0xF8
                   jr   NZ, handle_color
-                  ld   a, -2
+                  ld   a, -2                        # a = 0xF8 ? back space
                   add  e
                   anda 31
-                  ld   e, a
+                  ld   e, a                         # cursor = cursor - 2
                   jr   save_position
-    handle_color  anda 0x07
-                  jp   extra_colors.set_fg_color
-    handle_pos    anda 0x1F
-                  ld   e, a
-                  ld   d, [hl]
-                  inc  hl
-    save_position ld   [dvar.at_position], de
-                  jr   next_char
+    handle_color  anda 0x07                         # set ink color to bits 0-2
+                  jp   extra_colors.set_fg_color    # exit via set_fg_color
+    handle_pos    anda 0x1F                         # move the screen cursor to the given position
+                  ld   e, a                         # column in bits 0-4
+                  ld   d, [hl]                      # line number in the following code
+                  inc  hl                           # next character's address
+    save_position ld   [dvar.at_position], de       # save cursor position
+                  jr   next_char                    # process the next text character
     handle_wait   add  a
                   add  a
                   add  a
-                  ld   [dvar.text_delay], a
+                  ld   [dvar.text_delay], a         # set the delay to code * 8
                   ret
   end
 
-  # randomize pattern ink color
+  # The "random ink color stripes" effect.
   ns :extra_random do
                   ld   hl, dvar.colors_delay
-                  dec  [hl]
-                  jr   NZ, apply
+                  dec  [hl]                   # decrease effect's counter
+                  jr   NZ, apply              # 0 ? end of effect
                   ld   de, signal_next
-                  push de
-    apply         ld   a, [hl]
+                  push de                     # exit via signal_next
+    apply         ld   a, [hl]                # a: counter value
                   anda 3
-                  ret  NZ
-                  call next_rnd2
-                  ld   a, h # rnd lo
-                  ld   h, pattern_buf >> 8 # pattern hi
-                  ld   d, 0b11111000 # attr mask
-                  anda 0b00000111    # crop to ink color
+                  ret  NZ                     # render once each 4 counter ticks
+                  call next_rnd2              # hl: next random number $0000-$ffff
+                  ld   a, h                   # a: next random number (bits 8-15)
+                  ld   h, pattern_buf >> 8    # h: pattern_buf MSB, l: random cell index $00-$ff
+                  anda 0b00000111             # a: crop random number to ink color
                   jr   NZ, not_black
-                  ld   a, 7
-    not_black     ld   c, a          # ink color
-                  ld   b, 16         # counter
-                  ld   e, 15         # next line increment - 1
-                  res  0, l          # only even columns
-    loop0         ld   a, d          # attr mask
-                  anda [hl]
-                  ora  c
-                  ld   [hl], a
-                  inc  l             # next column
-                  # ld   a, d
-                  # anda [hl]
+                  ld   a, 7                   # set to white if black
+    not_black     ld   c, a                   # c: random ink color 1..7
+                  ld   b, 16                  # b: row counter
+                  ld   e, 15                  # next line increment - 1
+                  res  0, l                   # only even columns
+                  ld   d, 0b11111000          # d: attributes mask
+    loop0         ld   a, [hl]                # get cell
+                  anda d                      # clear ink bits 0-2
+                  ora  c                      # merge ink bits
+                  ld   [hl], a                # even cell
+                  inc  l                      # next column
+                  # ld   a, [hl]
+                  # anda d
                   # ora  c
-                  ld   [hl], a
+                  ld   [hl], a                # odd cell
                   ld   a, e
                   add  l
-                  ld   l, a
+                  ld   l, a                   # next row
                   djnz loop0
                   ret
   end
 
-  # color snake
+  # The random "snake" (or "streets") effect.
   ns :extra_snake do
                   ld   hl, dvar.snake_control.counter
-                  dec  [hl]
-                  jr   Z, next_dir_rnd
-                  ld   a, [hl] # counter
-                  anda 0b00000001
-                  jr   NZ, skip_drawing
-                  inc  hl
-                  ld   c, [hl] # color
-                  inc  hl
-                  ld   a, [hl] # delta
-                  inc  hl
-                  add  [hl]    # yx
-                  ld   [hl], a # yx updated
-                  ld   l, a
-                  ld   h, pattern_buf >> 8
-                  ld   a, [hl]
-                  anda 0b11111000
-                  ora  c
-                  ld   [hl], a
-    skip_drawing  jp   synchronize_music
-    next_dir_rnd  push hl
-    randomize     call next_rnd2
-                  ex   de, hl
-                  pop  hl
+                  dec  [hl]                   # decrease snake's counter
+                  jr   Z, next_dir_rnd        # change direction when counter = 0
+                  ld   a, [hl]                # get counter
+                  anda 0b00000001             # check lowest bit
+                  jr   NZ, skip_drawing       # draw every 2nd tick
+                  inc  hl                     # -> snake_control.color
+                  ld   c, [hl]                # c: color
+                  inc  hl                     # -> snake_control.delta
+                  ld   a, [hl]                # a: delta
+                  inc  hl                     # -> snake_control.yx
+                  add  [hl]                   # yx += delta
+                  ld   [hl], a                # save yx
+                  ld   l, a                   # l: cell index
+                  ld   h, pattern_buf >> 8    # hl: cell address
+                  ld   a, [hl]                # get cell
+                  anda 0b11111000             # clear ink
+                  ora  c                      # set ink
+                  ld   [hl], a                # put cell
+    skip_drawing  jp   synchronize_music      # exit via music counter check
+                                              # select new direction and color
+    next_dir_rnd  push hl                     # save -> snake_control.counter
+                  call next_rnd2              # hl: next random number $0000-$ffff
+                  ex   de, hl                 # de: rnd
+                  pop  hl                     # -> snake_control.counter
                   ld   a, d
                   anda 0b00011111
                   ora  3
-                  ld   [hl], a # counter
-                  inc  hl      # color
+                  ld   [hl], a                # snake_control.counter = (rnd >> 8) & 31 | 3
+                  inc  hl                     # -> snake_control.color
                   ld   a, e
                   2.times { rrca }
                   anda 0b00000111
-                  ld   [hl], a # color
-                  inc  hl      # delta
-                  ld   a, e
+                  ld   [hl], a                # snake_control.color = (rnd >> 2) & 7
+                  inc  hl                     # -> snake_control.delta
+    select(directions & 0xFF){|v| v < (256 - 4) }.then do
                   ld   bc, directions
-                  anda 0b00000011
-                  adda_to b, c
-                  ld   a, [bc] # direction
-                  ld   [hl], a # delta
+                  ld   a, e
+                  anda 3
+                  add  c
+                  ld   c, a
+    end.else do
+      raise "sanity error: directions should not cross the 256 byte page boundary"
+    end
+                  ld   a, [bc]
+                  ld   [hl], a                # snake_control.delta = [directions[rnd & 3]]
                   ret
+
     directions    db -1, 1, -16, 16
   end
 
+  # 2 * extra_hide.
   ns :extra_hide2 do
                   call extra_hide
   end
-  # hide ink
+  # Set cells' ink color to cells' paper color randomly cell by cell.
   ns :extra_hide do
-                  call x_shuffle
-                  jr   NZ, apply
-                  ld   de, signal_next
-                  push de
-    apply         ld  a, [hl] # 0b__aaa___ -> 0b__aaaaaa
+                  call x_shuffle       # hl: random pattern cell address
+                  jr   NZ, apply       # ZF=1 ? that was the last one
+                  ld   de, signal_next # the effect is over
+                  push de              # return via signal_next
+    apply         ld  a, [hl]          # get cell
+    # Sets the attribute cell at +hl+ to ink and paper color from the paper color in accumulator.
     hide_color    ld  c, a
                   3.times { rrca }
                   xor c
                   anda 0b00000111
-                  xor c
-                  ld  [hl], a
+                  xor c                # 0b__ppp___ -> 0b__pppppp
+                  ld  [hl], a          # put cell
                   ret
   end
 
+  # 2 * extra_swap_hide.
   ns :extra_swap_hide2 do
                   call extra_swap_hide
   end
-  # swap pattern and hide ink
+  # Replace cells with the pattern at dvar.pattern and set ink color to paper's, randomly cell by cell.
   ns :extra_swap_hide do
-                  call x_shuffle
-                  jr   NZ, apply
-                  ld   de, signal_next
-                  push de
+                  call x_shuffle       # hl: random pattern cell address
+                  jr   NZ, apply       # ZF=1 ? that was the last one
+                  ld   de, signal_next # the effect is over
+                  push de              # return via signal_next
     apply         ld   a, [dvar.pattern_hi]
                   ld   d, a
                   ld   e, l
-                  ld   a, [de]
-                  jp   extra_hide.hide_color
+                  ld   a, [de]         # get the target pattern cell
+                  jr   extra_hide.hide_color
   end
 
-  # clear ink color
+  # Replace cells' ink color with dvar.fgcolor randomly cell by cell.
   ns :extra_show do
-                  call x_shuffle
-                  jr   NZ, apply
-                  ld   de, signal_next
-                  push de
-    apply         ld   a, [hl]
+                  call x_shuffle       # hl: random pattern cell address
+                  jr   NZ, apply       # ZF=1 ? that was the last one
+                  ld   de, signal_next # the effect is over
+                  push de              # return via signal_next
+    apply         ld   a, [hl]         # get cell
+    # Sets the attribute cell at +hl+ to paper color from the accumulator and to ink color from dvar.fgcolor.
     mix_fg_color  anda  0b11111000
                   ld   c, a
                   ld   a, [dvar.fgcolor]
                   anda 0b11100000
                   3.times { rlca }
                   ora  c
-                  ld   [hl], a
+                  ld   [hl], a         # put cell
                   ret
   end
 
+  # 2 * extra_swap.
   ns :extra_swap2 do
                   call extra_swap
   end
-  # swap pattern's paper color
+  # Replace cells with the pattern at dvar.pattern and set ink color to dvar.fgcolor, randomly cell by cell.
   ns :extra_swap do
-                  call x_shuffle
-                  jr   NZ, apply
-                  ld   de, signal_next
-                  push de
+                  call x_shuffle       # hl: random pattern cell address
+                  jr   NZ, apply       # ZF=1 ? that was the last one
+                  ld   de, signal_next # the effect is over
+                  push de              # return via signal_next
     apply         ld   a, [dvar.pattern_hi]
                   ld   d, a
                   ld   e, l
-                  ld   a, [de]
-                  jp   extra_show.mix_fg_color
+                  ld   a, [de]         # get the target pattern cell
+                  jr   extra_show.mix_fg_color
   end
 
+  # 2 * extra_destroy.
   ns :extra_destroy2 do
                   call extra_destroy
   end
-  # destroy pattern to bgcolor
+  # Replace cells' paper color with dvar.bgcolor and the ink color with dvar.fgcolor, randomly cell by cell.
   ns :extra_destroy do
-                  call x_shuffle
-                  jr   NZ, apply
-                  ld   de, signal_next
-                  push de
+                  call x_shuffle       # hl: random pattern cell address
+                  jr   NZ, apply       # ZF=1 ? that was the last one
+                  ld   de, signal_next # the effect is over
+                  push de              # return via signal_next
     apply         ld   a, [dvar.bgcolor]
-                  jp   extra_show.mix_fg_color
+                  jr   extra_show.mix_fg_color
   end
 
   # ns :extra_wave do
@@ -1549,80 +1588,80 @@ class GDC
   #                 ret
   # end
 
+  # The "scroll text" effect.
   ns :extra_scroll do
                   ld   hl, dvar.scroll_ctrl.color
-                  # ld   hl, dvar.scroll_ctrl.chars_temp
-                  inc  [hl]
+                  inc  [hl]                   # ++color
                   ld   a, [hl]
-                  inc  hl
+                  inc  hl                     # -> scroll_ctrl.bits_view
                   anda 0b00000101
                   ora  0b00000001
-                  ld   c, a # a color
-    set_buf_a     ld   de, pattern_buf | 0x10
-                  # render text
-    cloop         ld   a, [hl]
-                  inc  l
+                  ld   c, a                   # c: color & 0b101 | 1
+    # paint bits view onto the pattern cells
+    set_buf_a     ld   de, pattern_buf | 0x10 # de: target pattern address
+    set_buf_p_hi  set_buf_a + 2
+    cloop         ld   a, [hl]                # a: [scroll_ctrl.bits_view]
+                  inc  l                      # -> scroll_ctrl.bits_view++
                   scf
-                  rla
+                  rla                         # CF <- a <- 1 (adds marker bit)
                   ld   b, a
-    bloop         jr   NC, copy_color
-    put_color     ld   a, [de]
+    bloop         jr   NC, copy_color         # CF=0 ? copy ink color
+    put_color     ld   a, [de]                # CF=1 ? set ink color
                   anda 0b11111000
                   ora  c
-                  ld   [de], a
-                  inc  e
-                  sla  b
-                  jr   Z, exit_bloop
-                  jr   C, put_color
-    copy_color    inc  d
-                  ld   a, [de]
-                  dec  d
-                  ld   [de], a
-                  inc  e
-                  sla  b
-                  jr   NC, copy_color
-                  jr   NZ, put_color
+                  ld   [de], a                # put cell
+                  inc  e                      # next column
+                  sla  b                      # CF <- b <- 0
+                  jr   Z, exit_bloop          # b=0 ? exit rendering
+                  jr   C, put_color           # CF=1 ? set ink color
+    copy_color    inc  d                      # de: background pattern page address
+                  ld   a, [de]                # get cell
+                  dec  d                      # de: target pattern address
+                  ld   [de], a                # put cell
+                  inc  e                      # next column
+                  sla  b                      # CF <- b <- 0
+                  jr   NC, copy_color         # CF=0 ? copy ink color
+                  jr   NZ, put_color          # b<>0 ? set ink color
     exit_bloop    ld   a, e
                   cp   0x10 + 0x60
-                  jr   C, cloop
-                  # swap buffer
+                  jr   C, cloop               # repeat until all character lines has been painted
+    # swap pattern buffers
                   ld   a, d
-                  ld   [dvar.pattern_bufh], a
+                  ld   [dvar.pattern_bufh], a # set the painted pattern for rendering
                   xor  2
-                  ld   [set_buf_a + 2], a
-                  # scroll bits
-                  ld   b, 6
-                  ld16 de, hl # dvar.scroll_ctrl.bits
+                  ld   [set_buf_p_hi], a      # set the shadow pattern for painting
+    # left scroll each 16 bits of bits_view and populate rightmost bits from the char_data
+                  ld   b, 6                   # b: line counter
+                  ld16 de, hl                 # de: -> dvar.scroll_ctrl.bits
                   ld   a, l
-                  add  b      # dvar.scroll_ctrl.char_data[7]
-                  ld   l, a
-    rloop         sla  [hl] # 3rd char
+                  add  b
+                  ld   l, a                   # hl: -> dvar.scroll_ctrl.char_data[b]
+    rloop         sla  [hl]                   # CF <- [char_data--] <- 0
                   dec  l
                   ex   de, hl
                   dec  l
-                  rl   [hl]
+                  rl   [hl]                   # CF <- [--bits_view] <- CF
                   dec  l
-                  rl   [hl]
+                  rl   [hl]                   # CF <- [--bits_view] <- CF
                   ex   de, hl
                   djnz rloop
-
-                  dec  [hl] # dvar.scroll_ctrl.bits
-                  jr   NZ, sync_focus
-
-    copy_chr      ld   [hl], 8 # reset bits
-                  # copy character
+                                              # hl: -> dvar.scroll_ctrl.bits
+                  dec  [hl]                   # bits -= 1
+                  jr   NZ, sync_focus         # still some bits left ? skip next character copy
+    # copy the shape of the next character to dvar.scroll_ctrl.char_data
+    copy_chr      ld   [hl], 8                # dvar.scroll_ctrl.bits = 8
                   ld   hl, [dvar.scroll_ctrl.text_cursor]
-    read_char     ld   a, [hl]
+    read_char     ld   a, [hl]                # a: character code
                   ora  a
-                  jr   Z, reset_text
-                  inc  hl
+                  jr   Z, reset_text          # 0 ? reset text pointer
+                  inc  hl                     # -> next character code address
                   ld   [dvar.scroll_ctrl.text_cursor], hl
                   char_ptr_from_code([vars.chars], a, tt:de)
                   inc  hl
                   ld   de, dvar.scroll_ctrl.char_data
                   ld   bc, 6
-                  ldir
-
+                  ldir                        # copy the shape of the character to dvar.scroll_ctrl.char_data
+    # slowly force the advanced scale control to the desired magnitude
     ensure_focus  ld   hl, dvar.scale_control.frms
                   ld   [hl], 0
                   ld   hl, dvar.pattx_control.vhi
@@ -1640,70 +1679,74 @@ class GDC
                   add  c       # a: cur += dir
                   ld   [hl], a
                   ret
-
+    # check music counter
     sync_focus    call synchronize_music
                   jr   ensure_focus
-
+    # reset text pointer
     reset_text    ld   hl, [dvar.text_cursor]
                   jr   read_char
   end
 
+  # The "spectrum analyzer" effect
   ns :extra_spectrum do
                   ld   hl, dvar.scale_control
-                  ld   [hl], 0 # frms
+                  ld   [hl], 0      # keep the focus unchanged (frms)
 
+    # the following routine renders the 16x16 "spectrum" based on 16 data points (0..255)
                   ld   hl, pattern_buf
                   ld   de, dvar.spectrum.data
-                  ld   a, 16
-
-    vloop         ex   af, af
-                  ld   a, [de]
-                  sub  16
-                  jr   NC, no_zero
-                  xor  a
-    no_zero       ld   [de], a
-                  add  16
-                  inc  de
-                  anda 0b11100000
-                  jr   Z, skip_line
+                  ld   a, 16        # row counter
+    # process each row
+    vloop         ex   af, af       # hide row counter
+                  ld   a, [de]      # get data point
+                  sub  16           # decay data point
+                  jr   NC, no_zero  # data point >= 16 ?
+                  xor  a            # clear data point if < 16
+    no_zero       ld   [de], a      # do decay
+                  add  16           # restore original data point value
+                  inc  de           # cursor to next data point
+                  anda 0b11100000   # take the most significant 3 bits only of the data point
+                  jr   Z, skip_line # just paint the whole row black
                   2.times { rrca }
-                  # ld   c, 7<<3#a # bg color 1-7
-                  ld   b, a # bg color 1-7 << 3
-                  anda 0b00011000
-                  ora  0x07
-                  ld   c, a
+                  # ld   c, 7<<3#a    # bg color 1-7
+                  ld   b, a         # paper color 1-7 << 3
+                  anda 0b00011000   # paper color 1-3
+                  ora  0x07         # white ink
+                  ld   c, a         # color to put
                   ld   a, b
                   3.times { rrca }
-                  ld   b, a # 1-7
+                  ld   b, a         # 1-7 (counter)
                   cpl
-                  add  0x11 # 9-F
-                  ora  l
-
-    hloop1        dec  c
-                  ld   [hl], c
-                  inc  l
+                  add  0x11         # $0F-$09    - col
+                  ora  l            # l: $00-$F0 - row, a: $l0-$lF - end gap
+    # the routine puts 16 colors in a row
+    # first (1..b) dark colors, black gap (b+1..a-1), (a..$lf) bright colors mirrored
+    hloop1        dec  c            # next color
+                  ld   [hl], c      # put color
+                  inc  l            # next col
                   djnz hloop1
-
-    hloop2        ld   [hl], b
-                  inc  l
-                  cp   l
+                                    # fill middle gap
+    hloop2        ld   [hl], b      # b: 0
+                  inc  l            # next col
+                  cp   l            # until end of gap
                   jr   NZ, hloop2
 
-                  ld   b, 0x0F
-                  set  6, c       # bright
-    hloop3        inc  c
-                  ld   [hl], c
-                  inc  l
+                  ld   b, 0x0F      # mask
+                  set  6, c         # set bright color
+    hloop3        inc  c            # next color (mirror)
+                  ld   [hl], c      # put color
+                  inc  l            # next col (next row at the end)
                   ld   a, l
-                  anda b
-                  jr   NZ, hloop3
+                  anda b            # col == 0 ?
+                  jr   NZ, hloop3   # until end of the row
 
-    next_line     ex   af, af
+    next_line     ex   af, af       # restore row counter
                   dec  a
-                  jr   NZ, vloop
+                  jr   NZ, vloop    # next row
 
                   call synchronize_music
 
+    # the following routine updates the spectrum data points based on music control variables
                   ld   hl, dvar.spectrum.data
                   ld   de, music.music_control.chan_a.current_note
                   # ld   bc, music.music_control.ay_registers.volume_a
@@ -1775,15 +1818,15 @@ class GDC
                   # add  0x1F
                   ld   [hl], a
                   ret
-
+    # paints the whole row black
     skip_line     ld   b, 16
-    skloop        ld   [hl], a
-                  inc  l
+    skloop        ld   [hl], a   # a: 0
+                  inc  l         # next col (next row at the end)
                   djnz skloop
-                  jp   next_line
+                  jp   next_line # back to loop
   end
 
-  # animate frames at dvar.pattern_bufh
+  # Animates frames at dvar.pattern_bufh.
   ns :animation do
                   ld   hl, [dvar.anim_frames]
     get_frame_ck  ld   a, l
@@ -1807,6 +1850,10 @@ class GDC
     restart       ld   hl, [dvar.anim_start]
                   jr   get_frame_ck
   end
+
+  ############
+  # Builders #
+  ############
 
   # Red G D C letters on a white bright chequered background
   ns :make_pattern1 do
@@ -2070,17 +2117,16 @@ class GDC
   ########
 
 
+  # The minimal sinus table base for creating the full sin/cos table.
   sintable  bytes neg_sintable256_pi_half_no_zero_lo
-  # cos256(a) = sin256(a+64)
-  # rotator       data Rotator, *angles
-  # rotator_end   label
 
-  # 0x00: EOT
-  # 0x80..0x9F: c & 0x1f = x cursor position, should follow by y cursor position
-  # 0xFc: change color
-  # 0xF8: backspace
-  # 0x01..0x1f: wait this many frames * 8
-  # 0xFF: clear ink screen
+  # Control characters:
+  # $00: EOT
+  # $80..$9F: bits 0 to 4 ($00..$1f) = cursor column position, should follow by the cursor line position
+  # $F0..$F7: change the ink color to bits 0 to 2
+  # $F8: backspace
+  # $01..$1f: wait this many frames * 8
+  # $FF: clear pixel screen
   intro_text    data "\x08\x92\x82G D C\x04\x82\xA0presents"
                 db 0
   title_text    data "\xF6\x87\x4FY A R T Z"
@@ -2093,6 +2139,7 @@ class GDC
                 data "\xFF\xF0\x83\x38Thanks\x8A\x50for\x8B\x68watching!"
                 db 0
 
+  # G D C characters
   pattern1_data db 0xA6, 0x00, 0b01111000,
                                0b10000000,
                                0b10000000,
@@ -2155,7 +2202,7 @@ class GDC
                 # db 0x62, 0x22, 0x86, 0x68 # yellow
                 # db 0x72, 0x11, 0x87, 0x78 # white
 
-  pattern4_data db  0xA1, 0x00, 0x00, # # bright red
+  pattern4_data db  0xA1, 0x00, 0x00, # bright red
                     0x26, 0x37, 0x11,
                                 0x19,
                                 0x55,
@@ -2178,6 +2225,7 @@ class GDC
   #                  0x11, 0x22, 0x77, # blue 7x7+2x2
   #                  0
 
+  # Animation data
   ludek_anim1   db pattern_ani1>>8, 6, pattern_ani2>>8, 6, pattern_ani3>>8, 6, pattern_ani2>>8, 0
   ludek_anim2   db pattern_ani4>>8, 6, pattern_ani5>>8, 6, pattern_ani6>>8, 6, pattern_ani5>>8, 0
   ludek_anim1a  db [pattern_ani1>>8, 1, pattern_ani4>>8, 1]*3,
@@ -2186,6 +2234,7 @@ class GDC
                    [pattern_ani2>>8, 1, pattern_ani5>>8, 1]*2,
                    pattern_ani2>>8, 1, pattern_ani5>>8, 0
 
+  # B/W figurine plane data
   ludek1_data   db (1<<4|4), 15,
                    0b00111100,
                    0b01111110,
@@ -2221,6 +2270,7 @@ class GDC
                    0b11000111,
                    0b11100010
 
+  # Color figurine chunky data
   ludek1_color  db (1<<4|4), 15,
                    0xFF,0x44,0x4C,0xFF,
                    0xF4,0x44,0x44,0xCF,
@@ -2285,8 +2335,6 @@ class Program
                 ld   hl, GDC_SEED
                 ld   [vars.seed], hl
                 ret  # jump [sp]
-                # pop  hl
-                # jp   (hl)
 
   decompress    dzx7_standard
   code_zx7      data ZX7.compress(GDC.code)
