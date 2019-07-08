@@ -190,6 +190,7 @@ if __FILE__ == $0
   music = Music1.new
   musmod = music.to_module
   puts musmod.to_program.new(0x8000).debug
+  puts "Recursion depth max: #{music.validate_recursion_depth!}"
   puts music.channel_tracks.map.with_index {|t, ch| "channel: #{ch} ticks: #{t.ticks_counter}" }
   puts "Index lookup table items: #{musmod.index_offsets.length}"
   puts "By type:"

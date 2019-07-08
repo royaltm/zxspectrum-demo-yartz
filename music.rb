@@ -16,8 +16,8 @@ class Music
 
   Song = ::Song
 
-  MusicInstance = Song.new
-  MusicData = MusicInstance.to_program
+  SONG = Song.new
+  MusicData = SONG.to_program
 
   # Boundary
   export start
@@ -56,7 +56,7 @@ class Music
 
   export :noauto
 
-  AY_MUSIC_OVERRIDE = { io128: io128,
+  AY_MUSIC_OVERRIDE = { io_ay: io_ay,
                         index_table: index_table,
                         notes: notes, note_to_cursor: note_to_cursor, fine_tones: fine_tones,
                         track_stack_end: track_stack_end,
@@ -68,7 +68,7 @@ class Music
 
   ns :init do
     ns :extend_notes do
-                      ay_extend_notes music.notes, octaves:8, save_sp:true, disable_intr:false, enable_intr:false
+                      ay_expand_notes_faster music.notes, octaves:8, save_sp:true, disable_intr:false, enable_intr:false
     end
     ns :tone_progress_table_factory do
                       ay_music_tone_progress_table_factory fine_tones
@@ -82,7 +82,7 @@ class Music
   end
 
   ns :mute do
-                      ay_init io128:io128
+                      ay_init io_ay:io_ay
                       ret
   end
 
@@ -133,7 +133,7 @@ if __FILE__ == $0
                         out  (io.ula), a
                         pop  iy
                         ld   de, [music.music_control.counter]
-                        cp16n d, e, Music::MusicInstance.channel_tracks.map(&:ticks_counter).max
+                        cp16n d, e, Music::SONG.channel_tracks.map(&:ticks_counter).max
                         jr   NC, quit
                         key_pressed?
                         jp  Z, forever
@@ -146,14 +146,14 @@ if __FILE__ == $0
     sintable          bytes   neg_sintable256_pi_half_no_zero_lo
     sincos_end        label
 
-    import            Music, :music, override: {'music.sincos': sincos, io128: io128 }
+    import            Music, :music, override: {'music.sincos': sincos, io_ay: io_ay }
     music_end         label
   end
 
   io_ay = ZXSys.io128
   # io_ay = ZXSys.fuller_io
   # io_ay = ZXSys.ioT2k
-  music = MusicTest.new 0x8000, override: { io128: io_ay }
+  music = MusicTest.new 0x8000, override: { io_ay: io_ay }
   puts music.debug
   puts "music size: #{music[:music_end] - music[:music]}"
   puts "song size: #{music['music.song_end'] - music['music.song']}"
@@ -178,6 +178,8 @@ if __FILE__ == $0
   ].each do |label|
     puts "#{label.ljust(30)}: 0x#{'%04x'%music[label]} - #{music[label]}"
   end
+
+  Music::SONG.validate_recursion_depth!(AYMusic::TRACK_STACK_DEPTH)
 
   ZX7.compress music.code[(music[:music]-music.org),(music[:music_end] - music[:music])]
   program = Basic.parse_source <<-EOC
