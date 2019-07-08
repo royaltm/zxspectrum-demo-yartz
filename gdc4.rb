@@ -62,14 +62,14 @@ class GDC
     dy1  word # delta y when moving right/left screen
   end
 
-  # Control structure of the simple zoom & scale.
+  # Control structure of the simple rotate'n'zoom.
   class RotateState < Label
     angle byte    # only for simple rotating when B_ROTATE_SIMPLY is set
     scale byte    # only for simple zooming when B_ENABLE_ZOOM and B_ROTATE_SIMPLY is set
     state angle word # union as word
   end
 
-  # Control structure of the advanced random zoom & scale & pan.
+  # Control structure of the auto random rotate'n'zoom & pan.
   class ValueControl < Label
     frms      byte     # frames counter (left to change target)
     tgt_incr  byte     # target  delta (unsigned)
@@ -97,9 +97,9 @@ class GDC
   class ScrollControl < Label
     text_cursor word      # current pointer to the text
     color       byte      # last paint color
-    bits_view   byte, 2*6 # 16x8 pixel bit view of the scroll (bits being painted onto pattern cells)
+    bits_view   word, 8   # 16x8 pixel bit view of the scroll (bits being painted onto pattern cells)
     bits        byte      # counter of bits to shift: 0..8
-    char_data   byte, 6   # a copy of the next text character shape being scrolled into bits_view
+    char_data   byte, 8   # a copy of the next text character shape being scrolled into bits_view
   end
 
   # Control structure of the "spectrum analyzer" effect.
@@ -125,10 +125,10 @@ class GDC
     colors_delay    byte            # colors delay counter
     shuffle_state   byte            # current shuffle index
     rotate_flags    byte            # rotation control with B_* flags
-    scale_control   ValueControl    # advanced scale control
-    angle_control   ValueControl    # advanced angle control
-    pattx_control   ValueControl    # advanced pan x control
-    patty_control   ValueControl    # advanced pan y control
+    scale_control   ValueControl    # auto scale control
+    angle_control   ValueControl    # auto angle control
+    pattx_control   ValueControl    # auto pan x control
+    patty_control   ValueControl    # auto pan y control
     snake_control   SnakeControl    # snake control
     rotate_state    RotateState     # simple zoom & scale control
     rotator         Rotator, 2      # 2 rotator matrixes: 1st for left to right and 2nd for right to left
@@ -141,7 +141,7 @@ class GDC
     anim_wait       byte            # animation slowdown counter
     anim_frames     word            # current animation frames address; no animation if 0
     anim_start      word            # restart animation frames address
-    seed1           word            # 1st seed for the advanced random rotation control
+    seed1           word            # 1st seed for the auto random control
     seed2           word            # 2nd seed for extra tasks' randomizer
     counter_sync_lo byte            # music counter target (LSB)
     counter_sync_hi byte            # music counter target (MSB)
@@ -168,8 +168,8 @@ class GDC
   dvar_end      addr :next, 0
   intr_stk_end  addr 0xF600, 2
   mini_stk_end  addr intr_stk_end[128], 2
-  patt_shuffle  addr mini_stk_end[0]
-  pattern_buf   addr patt_shuffle[256]      # current pattern data
+  patt_shuffle  addr mini_stk_end[0]        # shuffle pattern indexes
+  pattern_buf   addr patt_shuffle[256]      # main pattern data
   pattern_ani1  addr pattern_buf[256]       # animation pattern data
   pattern_ani2  addr pattern_ani1[256]      # animation pattern data
   pattern_ani3  addr pattern_ani2[256]      # animation pattern data
@@ -215,6 +215,41 @@ class GDC
                     ld   [bc], a    # set attr
   end
 
+  ###########
+  # Helpers #
+  ###########
+
+  # These are pretty straightforward
+
+  macro :wait_frames do |_, frames|
+                  ld   a, frames
+                  call wait_for_next.set_delay
+  end
+
+  macro :wait_for_music do |_, counter|
+                  ld   hl, counter
+                  call synchronize_music.wait_for_hl
+  end
+
+  macro :set_target_rotation_delta do |_, delta, frames:256|
+                  ld   hl, ((128 + delta)&0xFF)<<8|(frames&0xFF)
+                  ld   [dvar.angle_control.frms], hl
+  end
+
+  macro :set_target_zoom do |_, zoom, frames:256|
+                  ld   hl, (zoom&0xFF)<<8|(frames&0xFF)
+                  ld   [dvar.scale_control.frms], hl
+  end
+
+  macro :start_and_wait_for do |_, extra_fn, counter_sync:nil|
+    if counter_sync
+                  ld   hl, counter_sync
+                  ld   [dvar.counter_sync], hl
+    end
+                  ld   hl, extra_fn
+                  call wait_for_next.set_extra
+  end
+
   ########
   # MAIN #
   ########
@@ -224,9 +259,7 @@ class GDC
                   push hl                   # save hl'
 
                   di
-                  # ld  hl, 42423 # 1952 42422
-                  # ld  [vars.seed], hl
-                  ld   [save_sp + 1], sp
+                  ld   [save_sp_p], sp      # save system's sp
                   ld   sp, mini_stk_end     # own stack in "fast" mem
 
                   xor  a
@@ -234,145 +267,141 @@ class GDC
 
                   call music.init
 
-                  clrmem dvar, +dvar
+                  clrmem dvar, +dvar        # clear variables
 
-                  ld  hl, [vars.seed]       # initialize seed
+                  ld  hl, [vars.seed]       # initialize seeds
                   ld  [dvar.seed1], hl
                   ld  [dvar.seed2], hl
 
-                  call make_sincos
+                  call make_sincos          # create sincos table
 
-                  call make_pattern1
+                  call make_pattern1        # build patterns
                   call make_pattern2
                   call make_pattern3
                   call make_pattern4
                   call make_pattern6
                   call make_figurines
 
-                  xor  a   # ld   a, 256
-                  ld   [dvar.shuffle_state], a
-                  shuffle_bytes_source_max256 target:patt_shuffle, length:a do
+                  # pre-randomize shuffle pattern indexes
+                  shuffle_bytes_source_max256 target:patt_shuffle, length:256 do
                     call next_rnd2
                     ld   a, l
                   end
 
+                  # walking b/w figurine
                   ld   hl, ludek_anim1
                   ld   [dvar.anim_start], hl
                   call animation.restart
 
-                  # ld   a, pattern_buf >> 8
-                  # ld   [dvar.pattern_bufh], a
-
+                  # set initial zoom and angle
                   ld   hl, 0x6000
-                  # ld   hl, 0x7f00
                   ld   [dvar.rotate_state.state], hl
+                  # set initial panning coordinates
                   ld   hl, 0x8000
                   ld   [dvar.pattx_control.value], hl
                   ld   [dvar.patty_control.value], hl
+                  # initialize auto rotate/pan control
                   ld   hl, dvar.angle_control.frms
                   ld   a, 192
                   ld   c, a
-                  ld   [hl], a
+                  ld   [hl], a # dvar.angle_control.frms = 192
                   ld   de, +dvar.angle_control
                   add  hl, de
                   sub  c
-                  ld   [hl], a # dvar.pattx_control.frms
+                  ld   [hl], a # dvar.pattx_control.frms = 0
                   sub  c
                   add  hl, de
-                  ld   [hl], a # dvar.patty_control.frms
-                  inc  hl      # dvar.patty_control.tgt_incr
-                  inc  hl      # dvar.patty_control.cur_incr
+                  ld   [hl], a # dvar.patty_control.frms = 64
+                  inc  hl      # -> dvar.patty_control.tgt_incr
+                  inc  hl      # -> dvar.patty_control.cur_incr
                   ld   a, 0x80
                   ld   [hl], a # dvar.patty_control.cur_incr = neutral
                   sbc  hl, de
                   ld   [hl], a # dvar.pattx_control.cur_incr = neutral
 
-                  # ld   a, 0b11011111
-                  # ld   a, [vars.seed + 1]
-                  # ld   [dvar.fgcolor], a
-
+                  # rotate simply
                   ld   hl, dvar.rotate_flags
                   ld   [hl], 1 << B_ROTATE_SIMPLY
 
+                  # show pattern4
                   memcpy pattern_buf, pattern4, 256
 
-                  # ld   a, [vars.seed]
-                  # anda 7
-                  # xor  6
-
-                  # ld   a, 2
-                  # call extra_colors.set_fg_color
-
+                  # initialize text pointer to intro_text and text delay counter
                   ld   hl, dvar.text_delay
                   ld   [hl], 1
                   ld   hl, intro_text
                   ld   [dvar.text_cursor], hl
 
-                  # start rotating
+                  # start pattern rendering
                   setup_custom_interrupt_handler rotate_int
 
-                  ld   hl, extra_text
-                  call wait_for_next.set_extra
+                  # "write text" effect
+                  start_and_wait_for extra_text
 
-                  ld   hl, 300
-                  call synchronize_music.set_hl
+                  wait_for_music 300
+
+                  # figurine strobe morph
                   ld   hl, ludek_anim1a
                   ld   [dvar.anim_start], hl
-                  ld   a, 20
-                  call wait_for_next.set_delay
+
+                  wait_frames 20
+
+                  # walking color figurine
                   ld   hl, ludek_anim2
                   ld   [dvar.anim_start], hl
+
+                  # clear text
                   call clearscr
-                  ld   hl, 372
-                  call synchronize_music.set_hl
-                  # ld   a, 15
-                  # call wait_for_next.set_delay
+
+                  wait_for_music 372
+
+                  # start rotation
                   ld   a, -1
                   ld   [dvar.rotate_delta], a
-                  ld   a, 40
-                  call wait_for_next.set_delay
-
+                  wait_frames 40
+                  # pan view's y-axis to target the figurine's eye
                   ld   hl, 128+16
                   ld   [dvar.move_y], hl
-                  ld   hl, extra_spin
-                  call wait_for_next.set_extra
 
+                  # "crazy spin" effect
+                  start_and_wait_for extra_spin
+                  # start zooming
                   ld   hl, dvar.rotate_flags
                   set  B_ENABLE_ZOOM, [hl]
-
+                  # pan view's x-axis to target the figurine's eye
                   ld   hl, 0x0111
                   ld   [dvar.move_x], hl
-                  # ld   hl, 128
-                  # ld   [dvar.move_y], hl
-                  ld   a, 8
-                  call wait_for_next.set_delay
+
+                  wait_frames 8
+                  # stop x-panning
                   ld   hl, 0
                   ld   [dvar.move_x], hl
+                  # adjust x-axis
                   ld   hl, 0x8800
                   ld   [dvar.pattx_control.value], hl
-                  ld   a, 60
-                  call wait_for_next.set_delay
+
+                  wait_frames 60
+
+                  # stop y-panning
                   ld   hl, 0
                   ld   [dvar.move_y], hl
+                  # adjust y-axis
                   ld   hl, 0x3800
                   ld   [dvar.patty_control.value], hl
-                  ld   a, 28
-                  call wait_for_next.set_delay
 
-                  ld   hl, dvar.rotate_flags
-                  res  B_ENABLE_ZOOM, [hl]
+                  wait_frames 28
 
+                  # stop animation
                   ld   hl, 0
                   ld   [dvar.anim_frames], hl
+                  # set the rendering pattern adress to main buffer
                   ld   a, pattern_buf >> 8
                   ld   [dvar.pattern_bufh], a
-                  ld   hl, dvar.rotate_flags
-                  set  B_ENABLE_ZOOM, [hl]
 
-                  ld   hl, extra_unspin
-                  call wait_for_next.set_extra
+                  # "brake spin" effect
+                  start_and_wait_for extra_unspin
 
-                  # convert current simple rotate angle and scale states to control values
+                  # convert the current simple rotate angle and zoom states to advanced control
                   ld   hl, dvar.angle_control.tgt_incr
                   ld   [hl], 128+127 # target
                   inc  l
@@ -395,252 +424,241 @@ class GDC
                   inc  l
                   ld   [hl], a      # current
 
+                  # enable advanced rotate/zoom (no panning yet)
                   ld   hl, dvar.rotate_flags
                   ld   [hl], 0
 
-                  # ld   hl, title_text
-                  # ld   [dvar.text_cursor], hl
-                  ld   hl, extra_text
-                  call wait_for_next.set_extra
+                  # "write text" effect (the text_cursor should be at title_text)
+                  start_and_wait_for extra_text
 
-                  ld   a, 80
-                  call wait_for_next.set_delay
+                  wait_frames 80
 
+                  # start auto panning
                   ld   hl, dvar.rotate_flags
                   set  B_RND_PATTERN, [hl]
 
-                  ld   hl, 16<<8|0
-                  ld   [dvar.scale_control.frms], hl
+                  # set the target zoom magnitude
+                  set_target_zoom 16, frames:256
 
-                  ld   hl, extra_hide2
-                  call wait_for_next.set_extra
+                  # ensure the pattern cells' ink color = cells' paper color
+                  start_and_wait_for extra_hide2
   
+                  # create the pixel grid
                   halt
                   ld   a, 0b01010101
                   call alt_clear_scr
 
+                  set_target_rotation_delta -127, frames:256
+
+                  # destroy the pattern with ink & paper color 0
                   ld   a, 0b00011111
                   ld   [dvar.fgcolor], a
+                  start_and_wait_for extra_destroy2
 
-                  ld   hl, (128-127)<<8|0
-                  ld   [dvar.angle_control.frms], hl
+                  set_target_rotation_delta 127, frames:128
+                  # set the target zoom magnitude
+                  set_target_zoom 255, frames:256
 
-                  ld   hl, extra_destroy2
-                  call wait_for_next.set_extra
-
-                  ld   hl, (128+127)<<8|128
-                  ld   [dvar.angle_control.frms], hl
-                  ld   hl, 255<<8|0
-                  ld   [dvar.scale_control.frms], hl
-
+                  # swap cells to pattern2 and set ink color to 2
                   ld   a, 0b01011111
                   ld   [dvar.fgcolor], a
-
                   ld   hl, pattern2
                   ld   [dvar.pattern], hl
-                  ld   hl, extra_swap2
-                  call wait_for_next.set_extra
+                  start_and_wait_for extra_swap2
 
-                  ld   hl, 1429
-                  call synchronize_music.set_hl
+                  # wait for music
+                  wait_for_music 1429
 
-                  ld   a, 0b00011111
+                  # "cycle ink and border colors to the rhythm" effect
+                  ld   a, 0b00011111           # start from 0.9
                   ld   [dvar.fgcolor], a
+                  start_and_wait_for extra_colors
 
-                  ld   hl, extra_colors
-                  call wait_for_next.set_extra
-
-                  ld   a, 24
-                  call wait_for_next.set_delay
-
-                  ld   a, 0b10111111
-                  ld   [dvar.fgcolor], a
+                  wait_frames 24
+                  # set patterns' ink color to 3
                   ld   a, 3
                   call extra_colors.set_fg_color
 
+                  # swap cells to pattern3 and set ink color to 5
+                  ld   a, 0b10111111
+                  ld   [dvar.fgcolor], a
                   ld   hl, pattern3
                   ld   [dvar.pattern], hl
-                  ld   hl, extra_swap2
-                  call wait_for_next.set_extra
+                  start_and_wait_for extra_swap2
 
-                  ld   hl, 1801
-                  call synchronize_music.set_hl
+                  wait_for_music 1801
 
-                  ld   hl, 128<<8|0
-                  ld   [dvar.scale_control.frms], hl
+                  set_target_zoom 128, frames:256
 
-                  ld   a, 0b00011111
+                  # "cycle ink and border colors to the rhythm" effect
+                  ld   a, 0b00011111           # start from 0.9
                   ld   [dvar.fgcolor], a
+                  start_and_wait_for extra_colors
 
-                  ld   hl, extra_colors
-                  call wait_for_next.set_extra
-
-                  ld   a, 24
-                  call wait_for_next.set_delay
-
+                  wait_frames 24
+                  # set patterns' ink color to 6
                   ld   a, 6
                   call extra_colors.set_fg_color
 
-                  ld   a, 24
-                  call wait_for_next.set_delay
+                  wait_frames 24
 
-                  ld   hl, 0<<8|0
-                  ld   [dvar.scale_control.frms], hl
+                  set_target_zoom 0, frames:256
 
+                  # destroy the pattern with ink color 6 and paper color 2
                   ld   a, 0b11011111
                   ld   [dvar.fgcolor], a
                   ld   a, 0b00010000
                   ld   [dvar.bgcolor], a
-                  ld   hl, extra_destroy2
-                  call wait_for_next.set_extra
+                  start_and_wait_for extra_destroy2
 
-                  # # ld   hl, 0x8000
+                  # stop auto panning
                   ld   hl, dvar.rotate_flags
                   res  B_RND_PATTERN, [hl]
+                  # reset panning axes
                   ld   hl, 0x0000
                   ld   [dvar.pattx_control.value], hl
                   ld   hl, 0xC000
                   ld   [dvar.patty_control.value], hl
-                  ld   hl, 0xB000
-                  ld   [dvar.scale_control.frms], hl
-                  ld   hl, 128<<8|0
-                  ld   [dvar.angle_control.frms], hl
-                  ld   hl, dvar.rotate_flags
-                  res  B_RND_PATTERN, [hl]
 
-                  ld   hl, 3444
-                  ld   [dvar.counter_sync], hl
-                  ld   hl, extra_spectrum
-                  call wait_for_next.set_extra
+                  set_target_zoom 176, frames:256
+                  set_target_rotation_delta 0, frames:256
 
-                  ld   hl, 128+32<<8|240
-                  ld   [dvar.angle_control.frms], hl
+                  # "spectrum analyzer" effect
+                  start_and_wait_for extra_spectrum, counter_sync: 3444
+
+                  set_target_rotation_delta 32, frames:240
 
                   ld   hl, 3959 - 168
                   ld   [dvar.counter_sync], hl
+                  # continue "spectrum analyzer"
                   call wait_for_next
 
-                  ld   hl, 0x0000
-                  ld   [dvar.scale_control.frms], hl
+                  # zoom in
+                  set_target_zoom 0, frames:256
+                  # start auto panning
                   ld   hl, dvar.rotate_flags
                   set  B_RND_PATTERN, [hl]
+
                   ld   hl, 3959
                   ld   [dvar.counter_sync], hl
+                  # continue "spectrum analyzer"
                   call wait_for_next
 
-                  ld   hl, 0xFF00
-                  ld   [dvar.scale_control.frms], hl
+                  # zoom out
+                  set_target_zoom 255, frames:256
+
+                  # show pattern3
                   memcpy pattern_buf, pattern3, 256
 
-                  ld   a, 0
+                  # set border color and clear pattern cells' ink to 0
+                  xor  a
                   call extra_colors.set_fg_clrbrd
-                  ld   hl, extra_random
-                  call wait_for_next.set_extra
+                  # "random ink color stripes" effect.
+                  start_and_wait_for extra_random
                   call wait_for_next
 
+                  # swap cells to pattern6 and set cells' ink to cells' paper
                   ld   hl, pattern6
                   ld   [dvar.pattern], hl
-                  ld   hl, extra_swap_hide2
-                  call wait_for_next.set_extra
-                  # call wait_for_next.reset
+                  start_and_wait_for extra_swap_hide2
 
-                  ld   hl, 5608
-                  ld   [dvar.counter_sync], hl
-                  ld   hl, 16<<8|128
-                  ld   [dvar.scale_control.frms], hl
+                  set_target_zoom 16, frames:128
+
+                  # "snake" effect
                   ld   a, 1
                   ld   [dvar.snake_control.counter], a
-                  ld   hl, extra_snake
-                  call wait_for_next.set_extra
+                  start_and_wait_for extra_snake, counter_sync: 5608
 
-                  ld   hl, (128+80)<<8|0
-                  ld   [dvar.angle_control.frms], hl
-                  ld   hl, extra_hide2
-                  call wait_for_next.set_extra
+                  # ensure the pattern cells' ink color = cells' paper color
+                  set_target_rotation_delta 80, frames:256
+                  start_and_wait_for extra_hide2
 
+                  # stop auto panning
                   ld   hl, dvar.rotate_flags
                   res  B_RND_PATTERN, [hl]
-                  ld   hl, 128<<8|0
-                  ld   [dvar.scale_control.frms], hl
-                  ld   hl, (128-8)<<8|0
-                  ld   [dvar.angle_control.frms], hl
+                  set_target_zoom 128, frames:256
+                  set_target_rotation_delta -8, frames:256
+                  # adjust panning axes
                   xor  a
                   ld   [dvar.pattx_control.vlo], a
                   ld   [dvar.patty_control.vlo], a
 
+                  # copy rendered pattern cells to buffers: pattern_ani1, pattern_ani2 and pattern_ani3
                   memcpy pattern_ani1, pattern_buf, 256*3, reverse: false
+                  # slightly delay the text progression
                   ld   hl, dvar.scroll_ctrl.bits
                   ld   [hl], 24
+                  # set text for extra_scroll, dvar.text_cursor should be at scroll_text
                   ld   hl, scroll_text
                   ld   [dvar.scroll_ctrl.text_cursor], hl
-                  # ld   [dvar.text_cursor], hl
-                  ld   hl, 6328
-                  ld   [dvar.counter_sync], hl
-                  ld   hl, extra_scroll
-                  call wait_for_next.set_extra
+                  # "scroll text" effect
+                  start_and_wait_for extra_scroll, counter_sync: 6328
 
+                  # start auto panning
                   ld   hl, dvar.rotate_flags
                   set  B_RND_PATTERN, [hl]
-                  ld   hl, (128+10)<<8|0
-                  ld   [dvar.angle_control.frms], hl
-                  ld   hl, 6834 # 6520
+
+                  set_target_rotation_delta 10, frames:256
+
+                  ld   hl, 6834
                   ld   [dvar.counter_sync], hl
+                  # continue "scroll text"
                   call wait_for_next
 
+                  # set the rendering pattern adress to main buffer
                   ld   a, pattern_buf >> 8
                   ld   [dvar.pattern_bufh], a
+                  # restore background pattern
                   memcpy pattern_buf, pattern_ani1, 256
 
+                  # swap cells to pattern1 and set cells' ink to cells' paper
                   ld   hl, pattern1
                   ld   [dvar.pattern], hl
-                  ld   hl, extra_swap_hide
-                  call wait_for_next.set_extra
+                  start_and_wait_for extra_swap_hide
 
+                  # clear the pixel grid
                   call clearscr
+                  # restore the original pattern1 ink color
                   memcpy pattern_buf, pattern1, 256
 
+                  # "write text" effect
                   ld   hl, greetz_text
                   ld   [dvar.text_cursor], hl
-                  ld   hl, extra_text
-                  call wait_for_next.set_extra
+                  start_and_wait_for extra_text
 
-                  ld   hl, 7990 #7990 # 7794
-                  call synchronize_music.set_hl
-                  ld   hl, extra_text
-                  call wait_for_next.set_extra
+                  wait_for_music 7990
 
-                  ld   hl, 8326
-                  call synchronize_music.set_hl
-                  ld   hl, extra_text
-                  call wait_for_next.set_extra
+                  # "write text" effect
+                  start_and_wait_for extra_text
 
-                  ld   hl, 16<<8|0
-                  ld   [dvar.scale_control.frms], hl
-                  ld   hl, 128<<8|0
-                  ld   [dvar.angle_control.frms], hl
+                  wait_for_music 8326
 
-                  ld   hl, 8588
-                  call synchronize_music.set_hl
+                  # "write text" effect
+                  start_and_wait_for extra_text
 
+                  set_target_zoom 16, frames:256
+                  set_target_rotation_delta 0, frames:256
+
+                  wait_for_music 8588
+
+                  set_target_zoom 255, frames:256
+                  set_target_rotation_delta -128, frames:256
+                  # destroy the pattern with ink color 7 and paper color 0
                   xor  a
                   ld   [dvar.bgcolor], a
                   dec  a
                   ld   [dvar.fgcolor], a
-                  ld   hl, 255<<8|0
-                  ld   [dvar.scale_control.frms], hl
-                  ld   hl, 0<<8|0
-                  ld   [dvar.angle_control.frms], hl
+                  start_and_wait_for extra_destroy
 
-                  ld   hl, extra_destroy
-                  call wait_for_next.set_extra
-                  ld   a, 50
-                  call wait_for_next.set_delay
+                  wait_frames 50
 
     demo_exit     di
                   call music.mute
                   ld   a, 0b00111000
                   call clear_screen
-    save_sp       ld   sp, 0                # set above
+    save_sp_a     ld   sp, 0                # restore sp
+    save_sp_p     save_sp_a + 1
+
                   restore_rom_interrupt_handler
                   pop  hl                   # restore hl'
                   exx
@@ -1280,7 +1298,7 @@ class GDC
 
     # Sets dvar.counter_sync and waits until music reaches the given counter.
     # hl: a value to set counter_sync to
-    set_hl        ld   [dvar.counter_sync], hl
+    wait_for_hl   ld   [dvar.counter_sync], hl
                   ld   hl, synchronize_music
                   jp   wait_for_next.set_extra
   end
@@ -1597,8 +1615,8 @@ class GDC
                   anda 0b00000101
                   ora  0b00000001
                   ld   c, a                   # c: color & 0b101 | 1
-    # paint bits view onto the pattern cells
-    set_buf_a     ld   de, pattern_buf | 0x10 # de: target pattern address
+    # paint bits_view pixels as the pattern cells' ink color
+    set_buf_a     ld   de, pattern_buf        # de: target pattern address
     set_buf_p_hi  set_buf_a + 2
     cloop         ld   a, [hl]                # a: [scroll_ctrl.bits_view]
                   inc  l                      # -> scroll_ctrl.bits_view++
@@ -1623,15 +1641,15 @@ class GDC
                   jr   NC, copy_color         # CF=0 ? copy ink color
                   jr   NZ, put_color          # b<>0 ? set ink color
     exit_bloop    ld   a, e
-                  cp   0x10 + 0x60
-                  jr   C, cloop               # repeat until all character lines has been painted
+                  cp   0x80
+                  jr   C, cloop               # repeat until all character lines have been painted
     # swap pattern buffers
                   ld   a, d
                   ld   [dvar.pattern_bufh], a # set the painted pattern for rendering
                   xor  2
                   ld   [set_buf_p_hi], a      # set the shadow pattern for painting
     # left scroll each 16 bits of bits_view and populate rightmost bits from the char_data
-                  ld   b, 6                   # b: line counter
+                  ld   b, 8                   # b: line counter
                   ld16 de, hl                 # de: -> dvar.scroll_ctrl.bits
                   ld   a, l
                   add  b
@@ -1657,11 +1675,10 @@ class GDC
                   inc  hl                     # -> next character code address
                   ld   [dvar.scroll_ctrl.text_cursor], hl
                   char_ptr_from_code([vars.chars], a, tt:de)
-                  inc  hl
                   ld   de, dvar.scroll_ctrl.char_data
-                  ld   bc, 6
+                  ld   bc, 8
                   ldir                        # copy the shape of the character to dvar.scroll_ctrl.char_data
-    # slowly force the advanced scale control to the desired magnitude
+    # prevents zoom and slowly forces the advanced pan control to the desired position
     ensure_focus  ld   hl, dvar.scale_control.frms
                   ld   [hl], 0
                   ld   hl, dvar.pattx_control.vhi
