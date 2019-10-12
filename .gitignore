@@ -22,4 +22,5 @@ sftp-config.json
 *.htm
 *.gem
 *.avi
+res
 mkmf.log
