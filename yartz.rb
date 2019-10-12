@@ -1,4 +1,6 @@
 # -*- coding: BINARY -*-
+require 'rubygems'
+require 'bundler/setup'
 require 'z80'
 require 'z80/math_i'
 require 'z80/stdlib'
