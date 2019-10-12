@@ -7,7 +7,6 @@
 *.zip
 *.bz2
 *.gz
-.bundle
 .cache
 Thumbs.db
 .DS_Store
