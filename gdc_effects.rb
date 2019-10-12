@@ -20,7 +20,7 @@ class GDCEffects
 
   export :auto
 
-  # Do some *extra* effect work (if possibly) each frame and return when the effect is over.
+  # Do some *extra* effect work (if possible) each frame and return when the effect is over.
   ns :wait_for_next do
     wloop       halt
     extra_a     call just_wait
