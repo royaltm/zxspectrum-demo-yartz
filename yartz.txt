@@ -1,6 +1,0 @@
-Nazwa pracy: Yet Another RoToZoomer
-Autor: r-type/GDC (Rafał Michalski)
-Kategoria: ZX Spectrum Demo
-Wymagania: kompatybilne z ZX Spectrum 48k + AY-3-891x/128k/+2/+3, ważna jest ilość T-States/Frame ze względu na "beam chasing". Standardowe (niepodkręcone) maszyny preferowane. Niestandardowe to np. Pentagon 128, ma znacząco więcej TS/F i niestety psuje efekt.
-
-Muzyka zawiera fragmenty kompozycji "Images" Claude'a Debussy - public domain.
