@@ -6,7 +6,7 @@ require 'z80'
 require 'zxutils/ay_music'
 
 # Change at will
-require_relative 'music6'
+require_relative 'mouvement'
 # Change accordingly
 Song = Mouvement
 
