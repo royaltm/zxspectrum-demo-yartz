@@ -1,6 +1,6 @@
 GIT
   remote: https://github.com/royaltm/z80-rb.git
-  revision: bc4d8d85d1fbdf0aa58bcfa8bd607c778c2eba26
+  revision: b9d2f775ab3f310cbcf00809b31c795de5eb1840
   branch: master
   specs:
     z80 (1.0.0.beta.pre.1)
@@ -16,4 +16,4 @@ DEPENDENCIES
   z80!
 
 BUNDLED WITH
-   2.0.1
+   2.0.2
