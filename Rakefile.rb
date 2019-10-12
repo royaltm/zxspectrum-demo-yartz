@@ -14,3 +14,8 @@ desc "Find an emulator and try to run the TAP file"
 task :run do
   sh "bundle exec zxrun yartz.tap"
 end
+
+desc "Build a music module suitable for the z80rb player"
+task :music do
+  sh "bundle exec ruby music.rb"
+end
