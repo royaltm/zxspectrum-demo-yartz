@@ -19,7 +19,7 @@ This is a cleaned up version adopted to the latest release of the [z80rb](https:
 
 To be able to compile the demo you'd need:
 
-- [Ruby](https://www.ruby-lang.org/en/downloads/) 2.1.0 or later
+- [Ruby](https://www.ruby-lang.org/en/downloads/) 2.3.0 or later
 - `gem install bundler`
 - `cd zxspectrum-demo-yartz`
 - `rake install` or `bundle install`
