@@ -1,6 +1,6 @@
 GIT
   remote: https://github.com/royaltm/z80-rb.git
-  revision: b9d2f775ab3f310cbcf00809b31c795de5eb1840
+  revision: 693bdd50150f0000be1e96e3d29cccdd6ad28889
   branch: master
   specs:
     z80 (1.0.0.beta.pre.1)
