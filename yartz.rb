@@ -585,7 +585,7 @@ class Program
   # io_ay = ZXSys.fuller_io
   # io_ay = ZXSys.ioT2k
 
-  GDC = ::GDC.new 48000, override: { 'music.io128': io_ay }
+  GDC = ::GDC.new 48000, override: { 'music.io_ay': io_ay }
 
   export start
 
