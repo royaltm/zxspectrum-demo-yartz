@@ -15,6 +15,8 @@ r-type of
 
 presents the sources for it's ZX Spectrum [demo](http://www.pouet.net/prod.php?which=80935) released on the [Speccy.pl party 2019-04-06](http://speccy.pl/party/).
 
+[![demo](yartz.png)](https://royaltm.github.io/spectrusty/web-zxspectrum/#m=48k#ay=melodik#tap=https://yeondir.com/zxspectrum/files/demos/yartz.tap#fresh)
+
 You can watch it [here](https://royaltm.github.io/spectrusty/web-zxspectrum/#m=48k#ay=melodik#tap=https://yeondir.com/zxspectrum/files/demos/yartz.tap#fresh) in the web emulator.
 
 This is a cleaned up version adopted to the latest release of the [z80rb](https://github.com/royaltm/z80-rb).
